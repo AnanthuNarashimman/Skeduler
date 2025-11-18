@@ -1,0 +1,6 @@
+.landing-page {
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+    background: transparent; /* background moved to `body` so it covers the whole page */
+}
