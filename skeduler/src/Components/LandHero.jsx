@@ -1,5 +1,5 @@
 import "../ComponentStyles/LandHero.css";
-import LandBg from "../assets/Images/LandBg.png";
+import LandBg from "../assets/Images/LandBG.png";
 
 function LandHero() {
     return (
