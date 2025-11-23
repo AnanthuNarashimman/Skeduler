@@ -3,7 +3,7 @@ import './AdminDashboard.css';
 import AdminNavbar from './AdminNavbar';
 
 import Create from "../assets/Images/Create.png";
-import Manage from "../assets/Images/manage.png";
+import Manage from "../assets/Images/Manage.png";
 import Staffs from "../assets/Images/Staffs.png";
 import Announce from "../assets/Images/Announcements.png";
 
