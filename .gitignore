@@ -41,3 +41,6 @@ coverage/
 .cache/
 *.sqlite3
 *.log
+
+package-lock.json
+package.json
