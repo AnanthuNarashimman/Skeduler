@@ -1,7 +1,10 @@
+import { useNavigate } from 'react-router-dom';
 import "../ComponentStyles/LandHero.css";
 import LandBg from "../assets/Images/LandBG.png";
 
 function LandHero() {
+    const navigate = useNavigate();
+
     return (
         <div className="hero">
             <div className="leftPanel">
@@ -15,7 +18,7 @@ function LandHero() {
                 </div>
 
                 <div className="cta-area">
-                    <button className="cta">Get Started</button>
+                    <button className="cta" onClick={() => navigate('/admin/dashboard')}>Try Demo</button>
                     <button className="cta" onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}>Learn More</button>
                 </div>
 

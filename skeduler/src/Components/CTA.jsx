@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { FaArrowRight, FaUserShield } from "react-icons/fa";
+import { useNavigate } from 'react-router-dom';
+import { FaArrowRight, FaRocket } from "react-icons/fa";
 import "../ComponentStyles/CTA.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -10,6 +11,7 @@ function CTA() {
     const sectionRef = useRef(null);
     const contentRef = useRef(null);
     const buttonsRef = useRef(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const ctx = gsap.context(() => {
@@ -53,20 +55,16 @@ function CTA() {
         <section className="cta-section" ref={sectionRef}>
             <div className="cta-container">
                 <div className="cta-content" ref={contentRef}>
-                    <h2 className="cta-headline">Get Started with Intelligent Scheduling</h2>
+                    <h2 className="cta-headline">Experience Intelligent Scheduling</h2>
                     <p className="cta-description">
-                        Log in to the admin panel to manage your department's data and generate your first conflict-free timetable.
+                        Try our demo dashboard to see how easy it is to manage your department's data and generate conflict-free timetables.
                     </p>
                 </div>
 
                 <div className="cta-buttons" ref={buttonsRef}>
-                    <button className="cta-button primary">
-                        <FaUserShield className="button-icon" />
-                        Admin Login
-                        <FaArrowRight className="button-arrow" />
-                    </button>
-                    <button className="cta-button secondary">
-                        Login
+                    <button className="cta-button primary" onClick={() => navigate('/admin/dashboard')}>
+                        <FaRocket className="button-icon" />
+                        Try Demo
                         <FaArrowRight className="button-arrow" />
                     </button>
                 </div>
