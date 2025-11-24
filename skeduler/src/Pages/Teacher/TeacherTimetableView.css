@@ -122,6 +122,8 @@
   color: #1a1a1a;
   transition: all 0.3s ease;
   cursor: default;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .content-cell:hover {
@@ -131,8 +133,31 @@
 .teacher-period {
   background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important;
   border-left: 4px solid #6ba3d8;
-  font-weight: 700;
   color: #1e40af;
+}
+
+.free-period {
+  background: #f8fafc;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.class-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1e40af;
+}
+
+.subject-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #3b82f6;
+}
+
+.free-text {
+  color: #94a3b8;
+  font-weight: 500;
+  font-size: 0.85rem;
 }
 
 .lab-cell {
@@ -179,6 +204,11 @@
 .lab-highlight {
   background: #fff7ed;
   border-left: 4px solid #f59e0b;
+}
+
+.free-highlight {
+  background: #f8fafc;
+  border-left: 4px solid #94a3b8;
 }
 
 .legend-item span {

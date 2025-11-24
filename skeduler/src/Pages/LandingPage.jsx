@@ -33,13 +33,12 @@ function LandingPage() {
             ]
         },
         {
-            label: "Contact",
-            bgColor: "#271E37",
+            label: "Portal Access",
+            bgColor: "#6ba3d8",
             textColor: "#fff",
             links: [
-                { label: "Email", ariaLabel: "Email us", href: "#footer" },
-                { label: "Twitter", ariaLabel: "Twitter", href: "#footer" },
-                { label: "LinkedIn", ariaLabel: "LinkedIn", href: "#footer" }
+                { label: "Teacher Login", ariaLabel: "Teacher Login Portal", href: "/teacher/login" },
+                { label: "Try Admin Demo", ariaLabel: "Try Admin Demo", href: "/admin/dashboard" }
             ]
         }
     ];

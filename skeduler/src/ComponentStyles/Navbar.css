@@ -81,6 +81,13 @@
   height: 140px;
 }
 
+.card-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
 .card-nav-cta-button {
   background-color: #111;
   color: white;
@@ -90,12 +97,22 @@
   height: 100%;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
   align-items: center;
+  white-space: nowrap;
 }
 
 .card-nav-cta-button:hover {
   background-color: #333;
+}
+
+.card-nav-cta-button.secondary {
+  background: linear-gradient(135deg, #000000 0%, #000000 100%);
+  color: white;
+}
+
+.card-nav-cta-button.secondary:hover {
+  background: linear-gradient(135deg, #000000 0%, #000000 100%);
 }
 
 .card-nav-content {
@@ -180,7 +197,7 @@
     order: 1;
   }
 
-  .card-nav-cta-button {
+  .card-nav-buttons {
     display: none;
   }
 

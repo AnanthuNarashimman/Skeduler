@@ -154,14 +154,23 @@ const Navbar = ({
             <img src={logo} alt={logoAlt} className="logo" />
           </div>
 
-          <button
-            type="button"
-            className="card-nav-cta-button"
-            style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-            onClick={() => navigate('/admin/dashboard')}
-          >
-            Try Demo
-          </button>
+          <div className="card-nav-buttons">
+            <button
+              type="button"
+              className="card-nav-cta-button secondary"
+              onClick={() => navigate('/teacher/login')}
+            >
+              Teacher Login
+            </button>
+            <button
+              type="button"
+              className="card-nav-cta-button"
+              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+              onClick={() => navigate('/admin/dashboard')}
+            >
+              Try Demo
+            </button>
+          </div>
         </div>
 
         <div className="card-nav-content" aria-hidden={!isExpanded}>

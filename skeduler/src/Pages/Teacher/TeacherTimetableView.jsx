@@ -7,7 +7,8 @@ function TeacherTimetableView() {
   const { teacher } = useAuth();
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedClass, setSelectedClass] = useState(null);
+  const [unifiedSchedule, setUnifiedSchedule] = useState({});
+  const [totalPeriods, setTotalPeriods] = useState(0);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const periods = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'];
@@ -21,11 +22,7 @@ function TeacherTimetableView() {
       const response = await apiClient.get('/api/teacher/timetable');
       if (response.data.status === 'success') {
         setSchedule(response.data.schedule);
-        // Set first class as default
-        const firstClass = Object.keys(response.data.schedule)[0];
-        if (firstClass) {
-          setSelectedClass(firstClass);
-        }
+        buildUnifiedSchedule(response.data.schedule);
       }
       setLoading(false);
     } catch (err) {
@@ -34,12 +31,31 @@ function TeacherTimetableView() {
     }
   };
 
-  const isTeacherPeriod = (dayIdx, periodIdx) => {
-    if (!schedule || !selectedClass) return false;
-    const classData = schedule[selectedClass];
-    return classData.periods.some(
-      period => period.day === dayIdx && period.period === periodIdx
-    );
+  const buildUnifiedSchedule = (scheduleData) => {
+    const unified = {};
+    let count = 0;
+
+    // Initialize empty schedule
+    for (let day = 0; day < 6; day++) {
+      unified[day] = {};
+      for (let period = 0; period < 7; period++) {
+        unified[day][period] = null;
+      }
+    }
+
+    // Fill in teacher's periods from all classes
+    Object.entries(scheduleData).forEach(([className, classData]) => {
+      classData.periods.forEach(period => {
+        unified[period.day][period.period] = {
+          class: className,
+          subject: period.subject
+        };
+        count++;
+      });
+    });
+
+    setUnifiedSchedule(unified);
+    setTotalPeriods(count);
   };
 
   if (loading) {
@@ -70,35 +86,16 @@ function TeacherTimetableView() {
     );
   }
 
-  const currentClassSchedule = schedule[selectedClass];
-
   return (
     <>
       <TeacherNavbar />
       <div className="teacher-page">
         <div className="timetable-header">
-          <h1>My Timetable</h1>
-          <p>Your assigned classes and periods</p>
-        </div>
-
-        <div className="class-selector">
-          {Object.keys(schedule).map(className => (
-            <button
-              key={className}
-              className={`class-selector-btn ${selectedClass === className ? 'active' : ''}`}
-              onClick={() => setSelectedClass(className)}
-            >
-              {className}
-            </button>
-          ))}
+          <h1>My Weekly Schedule</h1>
+          <p>Teaching {Object.keys(schedule).length} classes with {totalPeriods} periods per week</p>
         </div>
 
         <div className="timetable-container">
-          <div className="timetable-info">
-            <h3>{selectedClass}</h3>
-            <p>{currentClassSchedule.periods.length} periods per week</p>
-          </div>
-
           <div className="timetable-grid">
             <div className="timetable-cell header-cell">Day/Period</div>
             {periods.map(period => (
@@ -111,16 +108,21 @@ function TeacherTimetableView() {
               <React.Fragment key={day}>
                 <div className="timetable-cell day-cell">{day}</div>
                 {periods.map((_, periodIdx) => {
-                  const isTeacher = isTeacherPeriod(dayIdx, periodIdx);
-                  const daySchedule = currentClassSchedule.full_schedule[dayIdx];
-                  const periodContent = daySchedule ? daySchedule[periodIdx] : '--- FREE ---';
+                  const periodData = unifiedSchedule[dayIdx]?.[periodIdx];
 
                   return (
                     <div
                       key={`${dayIdx}-${periodIdx}`}
-                      className={`timetable-cell content-cell ${isTeacher ? 'teacher-period' : ''} ${periodContent.toLowerCase().includes('lab') ? 'lab-cell' : ''}`}
+                      className={`timetable-cell content-cell ${periodData ? 'teacher-period' : 'free-period'} ${periodData?.subject.toLowerCase().includes('lab') ? 'lab-cell' : ''}`}
                     >
-                      {periodContent}
+                      {periodData ? (
+                        <>
+                          <div className="class-name">{periodData.class}</div>
+                          <div className="subject-name">{periodData.subject}</div>
+                        </>
+                      ) : (
+                        <span className="free-text">Free</span>
+                      )}
                     </div>
                   );
                 })}
@@ -131,11 +133,15 @@ function TeacherTimetableView() {
           <div className="legend">
             <div className="legend-item">
               <div className="legend-color teacher-highlight"></div>
-              <span>Your Periods</span>
+              <span>Your Classes</span>
             </div>
             <div className="legend-item">
               <div className="legend-color lab-highlight"></div>
               <span>Lab Periods</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color free-highlight"></div>
+              <span>Free Periods</span>
             </div>
           </div>
         </div>
