@@ -1,3 +1,7 @@
+<div align="center">
+<img width="900" height="250" alt="ChatGPT Image Nov 17, 2025, 02_27_20 PM" src="https://github.com/user-attachments/assets/b2b5fe48-a01e-4ab1-b384-6036fd06fcc8" />
+</div>
+
 # 📅 Skeduler - Automated Timetable Generation System
 
 <div align="center">
@@ -509,6 +513,5 @@ For support, questions, or feedback:
 
 ⭐ Star this repo if you find it helpful!
 
-[🌐 Visit Live Demo](https://skeduler-git-development-ananthunarashimmans-projects.vercel.app) • [📖 Documentation](https://github.com/AnanthuNarashimman/Skeduler/wiki) • [🐛 Report Bug](https://github.com/AnanthuNarashimman/Skeduler/issues)
 
 </div>
