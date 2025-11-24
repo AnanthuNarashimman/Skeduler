@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from "../Components/Navbar";
 import Footer from "../Components/Footer";
 import Logo from "../assets/Images/Logo.png";
-import "../PageStyles/StaffPage.css";
-import { FaUser, FaBook, FaChalkboardTeacher } from 'react-icons/fa';
+import "./StaffPage.css";
 
 const sampleStaff = {
   name: 'Dr. Maya Raman',
@@ -71,27 +70,16 @@ function StaffPage() {
           <>
             <section className="dashboard-cards">
               <div className="card">
-                <div className="card-icon"><FaChalkboardTeacher size={28} /></div>
-                <div className="card-body">
-                  <div className="card-title">CLASSES IN DEPARTMENT</div>
-                  <div className="card-value">{sampleStaff.classes.length}</div>
-                </div>
+                <div className="card-title">Name</div>
+                <div className="card-value">{sampleStaff.name}</div>
               </div>
-
               <div className="card">
-                <div className="card-icon"><FaUser size={28} /></div>
-                <div className="card-body">
-                  <div className="card-title">STAFF IN DEPARTMENT</div>
-                  <div className="card-value">42</div>
-                </div>
+                <div className="card-title">Subjects</div>
+                <div className="card-value">{sampleStaff.subjects.length}</div>
               </div>
-
               <div className="card">
-                <div className="card-icon"><FaBook size={28} /></div>
-                <div className="card-body">
-                  <div className="card-title">SUBJECTS</div>
-                  <div className="card-value">{sampleStaff.subjects.length}</div>
-                </div>
+                <div className="card-title">Classes</div>
+                <div className="card-value">{sampleStaff.classes.length}</div>
               </div>
             </section>
 

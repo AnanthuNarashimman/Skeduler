@@ -10,25 +10,15 @@
 }
 
 .staff-header {
-  display: block;
-  text-align: center;
-  margin-top: 64px;
-  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
 .staff-header h1 {
-  margin: 8px 0 6px;
-  color: #111827;
-  font-size: 56px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.staff-header .subtitle {
-  color: #6b7280;
-  font-size: 18px;
-  margin-bottom: 6px;
+  margin: 0;
+  color: #2c3e50;
 }
 
 .btn {
@@ -40,9 +30,6 @@
   cursor: pointer;
 }
 
-.btn { transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease; }
-.btn:hover { background: #229153; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(34,145,83,0.12); }
-
 .dashboard-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -52,45 +39,16 @@
 
 .card {
   background: #fff;
-  padding: 18px 20px;
-  border-radius: 18px;
-  box-shadow: 0 18px 40px rgba(17,24,39,0.06);
-  display: flex;
-  gap: 18px;
-  align-items: center;
-}
-
-/* hover and transition helpers for card components */
-.card, .card-icon, .card-body, .card-title, .card-value {
-  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
-}
-
-.card:hover {
-  transform: translateY(-6px) scale(1.005);
-  box-shadow: 0 28px 60px rgba(17,24,39,0.10);
-}
-
-.card:hover .card-icon { transform: translateY(-2px) scale(1.03); }
-.card-icon:hover { transform: scale(1.06); }
-
-.card-icon {
-  width: 64px;
-  height: 64px;
+  padding: 20px 22px;
   border-radius: 12px;
-  background: linear-gradient(180deg,#6fb2ff,#4aa8ff);
-  display:flex; align-items:center; justify-content:center;
-  color: #fff;
-  box-shadow: 0 10px 18px rgba(74,168,255,0.16);
+  box-shadow: 0 8px 20px rgba(17,24,39,0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.card-body { display:flex; flex-direction:column; }
-.card-title { font-weight: 700; color: #65707a; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.card-value { font-size: 40px; margin-top: 6px; color: #0f1724; font-weight: 700; }
-
-/* Make two large wide cards look similar to Admin mock: on wide screens show two columns */
-@media (min-width: 1100px) {
-  .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
-}
+.card-title { font-weight: 700; color: #2f4858; font-size: 0.95rem; margin-bottom: 6px; }
+.card-value { font-size: 1.6rem; margin-top: 6px; color: #213443; font-weight: 600; }
 
 /* make cards slightly taller on large screens */
 @media (min-width: 1000px) {
@@ -188,8 +146,7 @@
   font-weight: 600;
 }
 
-.staff-subnav .nav-item { transition: color 160ms ease, transform 160ms ease, box-shadow 160ms ease; }
-.staff-subnav .nav-item:hover { color: #2c3e50; transform: translateY(-3px); }
+.staff-subnav .nav-item:hover { color: #2c3e50; }
 
 .staff-subnav .nav-item.active {
   background: linear-gradient(180deg,#6fb2ff,#4aa8ff);
@@ -210,9 +167,6 @@
   color: #2c6fb3;
   box-shadow: 0 6px 12px rgba(74,168,255,0.18);
 }
-
-.profile-circle { transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease; }
-.profile-circle:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 18px 36px rgba(74,168,255,0.22); }
 
 .directory-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .staff-list-card { background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.04); }

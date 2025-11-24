@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { GoArrowUpRight } from 'react-icons/go';
+import { useNavigate } from 'react-router-dom';
 import '../ComponentStyles/Navbar.css';
 
 const Navbar = ({
@@ -19,6 +20,7 @@ const Navbar = ({
   const navRef = useRef(null);
   const cardsRef = useRef([]);
   const tlRef = useRef(null);
+  const navigate = useNavigate();
 
   const calculateHeight = () => {
     const navEl = navRef.current;
@@ -156,8 +158,9 @@ const Navbar = ({
             type="button"
             className="card-nav-cta-button"
             style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+            onClick={() => navigate('/admin/dashboard')}
           >
-            Get Started
+            Try Demo
           </button>
         </div>
 

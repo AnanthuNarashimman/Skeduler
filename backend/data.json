@@ -1,0 +1,49 @@
+{
+  "classes": [
+    "III_SEM_A", "III_SEM_B", "III_SEM_C", 
+    "V_SEM_A", "V_SEM_B", 
+    "VII_SEM_A", "VII_SEM_B"
+  ],
+  "staff": [
+    "Mr. T. Bhaskar", "Mr. B. Rajesh", "Ms. R. Keerthana", "Mr. O.K. Gowrishankar", "Ms. U. Kasthuri",
+    "Mrs. E. Baby Anitha", "Dr. N. Mahendran", "Mrs. S. Vinothini", "Dr. R. Jeetendra", "Mrs. R. Vijayalakshme",
+    "Dr. S. Vadivel", "Mr. M. Azhagesan", "Mr. K. R. Natarajan", "Mrs. J. NirmalaGandhi", "Mr. P. Vasuki",
+    "Mr. S. Senthilkumar", "Mr. A. Rajkannan", "Ms. S. Jaisridevi", "Mrs. P. Priyadharshini",
+    "Mr. M. Namasivayam", "Dr. S. Savitha", "Dr. V. Shamila",
+    "Mr. M. Ajithkumar", "Dr. S. Uthayasankar", "Dr. M. Venkatesan", "Mr. V. Ramesh", "Ms. M. Jayanthi",
+    "Other Faculty", "HOD", "Mentors", "Mrs. M. K. Nivodhini", "Mr. A. Yoganathan", "Ms. S.S. Boopathy"
+  ],
+  "subjects": [
+    "DMS", "DSA", "JP", "OSC", "COA", "DSA_Lab", "JP_Lab", "OSC_Lab", "DS-I", "SSD-III", "LIB_HH", "MH",
+    "DBMS", "DAA", "ME", "POM", "OE-I", "DBMS_Lab", "ME_Lab", "DAA_Lab", "BC", "CS",
+    "MC", "GM", "CBDA", "BI", "ASD", "SOA", "ISM", "DS", "UID", "GM_Lab", "CBDA_Lab", "PW", "T&P"
+  ],
+  "staff_expertise": {
+    "DMS": ["Mr. T. Bhaskar"], "DSA": ["Mr. B. Rajesh", "Mr. M. Namasivayam"],
+    "JP": ["Ms. R. Keerthana", "Mr. P. Vasuki"], "OSC": ["Mrs. J. NirmalaGandhi", "Mr. O.K. Gowrishankar", "Mrs. S. Vinothini"],
+    "COA": ["Ms. U. Kasthuri"], "DSA_Lab": ["Mrs. E. Baby Anitha", "Mr. M. Namasivayam"],
+    "JP_Lab": ["Dr. N. Mahendran", "Mr. P. Vasuki"], "OSC_Lab": ["Mrs. S. Vinothini", "Mrs. P. Priyadharshini"],
+    "DS-I": ["Mr. O.K. Gowrishankar"], "SSD-III": ["Mr. O.K. Gowrishankar", "Ms. S. Jaisridevi"],
+    "LIB_HH": ["Mr. V. Ramesh", "Mr. O.K. Gowrishankar", "Mrs. J. NirmalaGandhi", "Mrs. S. Vinothini", "Ms. P. Priyadharshini"],
+    "MH": ["Mentors", "Mr. A. Rajkannan", "Dr. V. Shamila", "Dr. M. Venkatesan"],
+    "DBMS": ["Dr. R. Jeetendra"], "DAA": ["Mrs. R. Vijayalakshme"], "ME": ["Dr. S. Vadivel"],
+    "POM": ["Mr. M. Azhagesan"], "OE-I": ["Mr. K. R. Natarajan"],
+    "DBMS_Lab": ["Mrs. J. NirmalaGandhi"], "ME_Lab": ["Mr. P. Vasuki"], "DAA_Lab": ["Mr. S. Senthilkumar"],
+    "BC": ["Ms. S. Jaisridevi"], "CS": ["Mrs. P. Priyadharshini"],
+    "MC": ["Mr. M. Ajithkumar", "Mrs. M. K. Nivodhini"], "GM": ["Mr. M. Namasivayam", "Ms. R. Keerthana"],
+    "CBDA": ["Mrs. J. NirmalaGandhi", "Mr. A. Yoganathan"], "BI": ["Dr. N. Mahendran"],
+    "ASD": ["Other Faculty", "Ms. S.S. Boopathy"], "SOA": ["Dr. S. Savitha"], "ISM": ["Ms. M. Jayanthi"],
+    "DS": ["Dr. S. Uthayasankar", "Mrs. E. Baby Anitha"], "UID": ["Dr. M. Venkatesan", "Mr. V. Ramesh"],
+    "GM_Lab": ["Mr. M. Namasivayam", "Ms. R. Keerthana"], "CBDA_Lab": ["Mr. V. Ramesh", "Ms. S.S. Boopathy"],
+    "PW": ["Mr. M. Namasivayam"], "T&P": ["Mrs. M. K. Nivodhini"]
+  },
+  "class_data": {
+    "III_SEM_A": {"subjects": ["DMS", "DSA", "JP", "OSC", "COA", "DS-I", "SSD-III", "LIB_HH", "MH"], "labs": ["DSA_Lab", "JP_Lab", "OSC_Lab"], "elective_groups": []},
+    "III_SEM_B": {"subjects": ["DMS", "DSA", "JP", "OSC", "COA", "DS-I", "SSD-III", "LIB_HH", "MH"], "labs": ["DSA_Lab", "JP_Lab", "OSC_Lab"], "elective_groups": []},
+    "III_SEM_C": {"subjects": ["DMS", "DSA", "JP", "OSC", "COA", "DS-I", "SSD-III", "LIB_HH", "MH"], "labs": ["DSA_Lab", "JP_Lab", "OSC_Lab"], "elective_groups": []},
+    "V_SEM_A": {"subjects": ["DBMS", "DAA", "ME", "POM", "OE-I", "BC", "CS", "LIB_HH", "MH"], "labs": ["DBMS_Lab", "ME_Lab", "DAA_Lab"], "elective_groups": []},
+    "V_SEM_B": {"subjects": ["DBMS", "DAA", "ME", "POM", "OE-I", "BC", "CS", "LIB_HH", "MH"], "labs": ["DBMS_Lab", "ME_Lab", "DAA_Lab"], "elective_groups": []},
+    "VII_SEM_A": {"subjects": ["MC", "GM", "CBDA", "PW", "LIB_HH", "MH", "BI", "ASD", "SOA", "ISM", "DS", "UID"], "labs": ["GM_Lab", "CBDA_Lab"], "elective_groups": [["BI", "ASD"], ["SOA", "ISM"], ["DS", "UID"]]},
+    "VII_SEM_B": {"subjects": ["MC", "GM", "CBDA", "T&P", "LIB_HH", "MH", "BI", "ASD", "SOA", "ISM", "DS", "UID"], "labs": ["GM_Lab", "CBDA_Lab"], "elective_groups": [["BI", "ASD"], ["SOA", "ISM"], ["DS", "UID"]]}
+  }
+}
