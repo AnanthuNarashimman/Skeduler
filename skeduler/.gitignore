@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+skeduler/node_modules
 dist
 dist-ssr
 *.local
@@ -22,3 +23,28 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build / cache
+/.cache
+.vite
+build/
+
+# Environment
+.env
+.env.*
+
+# Backend python venvs
+venv/
+env/
+backend/venv/
+
+# Test and coverage
+coverage/
+.pytest_cache/
+
+# OS generated files
+Thumbs.db
+
+# Package lock (optional)
+# package-lock.json
+

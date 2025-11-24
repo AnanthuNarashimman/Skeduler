@@ -1,8 +1,16 @@
-# Ignore top-level node_modules (project-level)
+# Ignore node modules at repo root and in workspace
 node_modules/
-
-# Also ignore the nested frontend package node_modules
 skeduler/node_modules/
 
-# Optional: ignore package-lock if you don't want it tracked
-# package-lock.json
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+
+
+#json package
+package-lock.json
+package.json
