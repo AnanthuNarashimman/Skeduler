@@ -42,7 +42,21 @@ def init_db():
             FOREIGN KEY (timetable_id) REFERENCES timetables (id) ON DELETE CASCADE
         )
     ''')
-    
+
+    # Create teachers table for authentication
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS teachers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            email TEXT,
+            department TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER DEFAULT 1
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
@@ -248,6 +262,73 @@ def update_timetable(timetable_id, schedule_data=None, department=None, semester
         raise e
     finally:
         conn.close()
+
+def create_teacher(name, username, password_hash, email=None, department="CSE"):
+    """Create a new teacher account"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            INSERT INTO teachers (name, username, password_hash, email, department)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (name, username, password_hash, email, department))
+
+        conn.commit()
+        return cursor.lastrowid
+    except sqlite3.IntegrityError:
+        # Username already exists
+        return None
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def get_teacher_by_username(username):
+    """Retrieve teacher by username"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM teachers WHERE username = ? AND is_active = 1
+    ''', (username,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None
+
+def get_teacher_by_id(teacher_id):
+    """Retrieve teacher by ID"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, name, username, email, department, created_at
+        FROM teachers WHERE id = ? AND is_active = 1
+    ''', (teacher_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None
+
+def get_all_teachers():
+    """Retrieve all active teachers"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, name, username, email, department, created_at
+        FROM teachers WHERE is_active = 1
+        ORDER BY name
+    ''')
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
 
 # Initialize database on import
 if __name__ == '__main__':

@@ -80,6 +80,32 @@ def solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise
         return fixed_assignments
     return None
 
+def get_schedulable_units(class_name, class_data, subject_idx):
+    """
+    Returns a list of subject indices that can be independently scheduled.
+    Treats elective groups as single units (using first subject as representative).
+    """
+    schedulable = []
+    elective_subjects = set()
+
+    # Collect all subjects in elective groups
+    for group in class_data[class_name]['elective_groups']:
+        for s in group:
+            elective_subjects.add(s)
+
+    # Add non-elective subjects and labs
+    full_list = class_data[class_name]['subjects'] + class_data[class_name]['labs']
+    for s_name in full_list:
+        if s_name not in elective_subjects and s_name in subject_idx:
+            schedulable.append(subject_idx[s_name])
+
+    # Add one representative from each elective group
+    for group in class_data[class_name]['elective_groups']:
+        if group and group[0] in subject_idx:
+            schedulable.append(subject_idx[group[0]])
+
+    return schedulable
+
 def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, class_data):
     """
     Step 2: Solves the timing puzzle using fixed staff assignments.
@@ -193,6 +219,22 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
                     for p in valid_lab_starts:
                         daily_labs.append(lab_starts.get((c_i, d, p, s_i), 0))
             model.Add(sum(daily_labs) <= 1)
+
+    # Rule 6: First Period Diversity (Different subject in Period 0 each day)
+    for c in all_classes:
+        c_i = class_idx[c]
+        schedulable_units = get_schedulable_units(c, class_data, subject_idx)
+
+        # For each pair of days, ensure different subjects in Period 0
+        for d1 in range(num_days):
+            for d2 in range(d1 + 1, num_days):
+                # Collect which subjects are scheduled in Period 0 on each day
+                for s_i in schedulable_units:
+                    # If subject s_i is in Period 0 on day d1, it cannot be in Period 0 on day d2
+                    both_scheduled = model.NewBoolVar(f'both_p0_c{c_i}_d{d1}_d{d2}_s{s_i}')
+                    model.AddBoolAnd([assign[(c_i, d1, 0, s_i)], assign[(c_i, d2, 0, s_i)]]).OnlyEnforceIf(both_scheduled)
+                    model.AddBoolOr([assign[(c_i, d1, 0, s_i)].Not(), assign[(c_i, d2, 0, s_i)].Not()]).OnlyEnforceIf(both_scheduled.Not())
+                    model.Add(both_scheduled == 0)  # Ensure it's always false (no subject appears in Period 0 on two different days)
 
     # Optimization: Minimize Repetition
     core_subjects = [

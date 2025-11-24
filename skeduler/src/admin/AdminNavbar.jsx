@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './AdminNavbar.css';
-import { FaEnvelope } from 'react-icons/fa';
+import { FaEnvelope, FaHome } from 'react-icons/fa';
 import Logo from "../assets/Images/Logo.png";
 
 const AdminNavbar = ({ activePage = 'Dashboard' }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(activePage);
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
@@ -45,6 +46,9 @@ const AdminNavbar = ({ activePage = 'Dashboard' }) => {
           </div>
 
           <div className="navbar-profile">
+            <button className="profile-button home-button" aria-label="Back to Home" onClick={() => navigate('/')}>
+              <FaHome />
+            </button>
             <button className="profile-button" aria-label="Contact Us" onClick={() => setShowContactModal(true)}>
               <FaEnvelope />
             </button>

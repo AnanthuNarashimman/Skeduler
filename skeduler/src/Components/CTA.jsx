@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useNavigate } from 'react-router-dom';
-import { FaArrowRight, FaRocket } from "react-icons/fa";
+import { FaArrowRight, FaRocket, FaUser } from "react-icons/fa";
 import "../ComponentStyles/CTA.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -65,6 +65,11 @@ function CTA() {
                     <button className="cta-button primary" onClick={() => navigate('/admin/dashboard')}>
                         <FaRocket className="button-icon" />
                         Try Demo
+                        <FaArrowRight className="button-arrow" />
+                    </button>
+                    <button className="cta-button secondary" onClick={() => navigate('/teacher/login')}>
+                        <FaUser className="button-icon" />
+                        Teacher Login
                         <FaArrowRight className="button-arrow" />
                     </button>
                 </div>
