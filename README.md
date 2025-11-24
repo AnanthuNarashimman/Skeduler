@@ -9,7 +9,6 @@
 [![Live Demo](https://img.shields.io/badge/Demo-Live-success?style=flat-square)](https://skeduler-git-development-ananthunarashimmans-projects.vercel.app)
 [![React](https://img.shields.io/badge/React-19.2.0-61dafb?style=flat-square&logo=react)](https://reactjs.org/)
 [![Flask](https://img.shields.io/badge/Flask-Python-000000?style=flat-square&logo=flask)](https://flask.palletsprojects.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 </div>
 
