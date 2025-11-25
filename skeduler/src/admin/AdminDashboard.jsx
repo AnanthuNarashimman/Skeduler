@@ -68,10 +68,10 @@ const AdminDashboard = () => {
               <path d="M9 21V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <div className="stat-content">
+          <div className="stat-content-admin">
+            <p className="stat-number-admin">{loading ? '...' : timetableCount}</p>
             <h3>Total Timetables</h3>
-            <p className="stat-number">{loading ? '...' : timetableCount}</p>
-            <p className="stat-description">Active class timetables in system</p>
+            <p className="stat-description-admin">Active class timetables in system</p>
           </div>
         </div>
       </div>

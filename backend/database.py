@@ -305,7 +305,7 @@ def get_teacher_by_id(teacher_id):
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT id, name, username, email, department, created_at
+        SELECT id, name, username, email, department, password_hash, created_at
         FROM teachers WHERE id = ? AND is_active = 1
     ''', (teacher_id,))
 
@@ -329,6 +329,37 @@ def get_all_teachers():
     conn.close()
 
     return [dict(row) for row in rows]
+
+def update_teacher_password(teacher_id, new_password_hash):
+    """
+    Update teacher's password
+    
+    Args:
+        teacher_id (int): Teacher ID
+        new_password_hash (str): New hashed password
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            UPDATE teachers 
+            SET password_hash = ?
+            WHERE id = ? AND is_active = 1
+        ''', (new_password_hash, teacher_id))
+
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"Error updating password: {e}")
+        return False
 
 # Initialize database on import
 if __name__ == '__main__':

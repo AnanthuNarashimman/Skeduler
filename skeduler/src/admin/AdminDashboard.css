@@ -110,7 +110,16 @@
   height: 36px;
 }
 
-.stat-content h3 {
+.stat-number-admin {
+  font-family: 'Inter', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+  line-height: 1;
+}
+
+.stat-content-admin h3 {
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
   color: #666;
@@ -120,19 +129,11 @@
   letter-spacing: 0.8px;
 }
 
-.stat-number {
-  font-family: 'Playfair Display', serif;
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0;
-}
-
-.stat-description {
+.stat-description-admin {
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
   color: #999;
-  margin: 8px 0 0 0;
+  margin: 0;
   font-weight: 400;
 }
 
@@ -447,8 +448,8 @@
     height: 56px;
   }
 
-  .stat-number {
-    font-size: 2rem;
+  .stat-number-admin {
+    font-size: 3rem;
   }
 
   .action-cards-container {

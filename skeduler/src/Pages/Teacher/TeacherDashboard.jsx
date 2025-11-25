@@ -56,8 +56,8 @@ function TeacherDashboard() {
       <TeacherNavbar />
       <div className="teacher-page">
         <div className="dashboard-header">
-          <h1>Welcome, {teacher?.name}!</h1>
-          <p>Here's your teaching schedule overview</p>
+          <h1>Teacher Portal</h1>
+          <p className="dashboard-subtitle">Welcome, {teacher?.name}! Here's your teaching schedule overview</p>
         </div>
 
         {error && (
@@ -107,7 +107,7 @@ function TeacherDashboard() {
           ) : (
             <div className="classes-grid">
               {Object.entries(schedule).map(([className, classData]) => (
-                <div key={className} className="class-card" onClick={() => navigate('/teacher/timetable', { state: { className } })}>
+                <div key={className} className="class-card">
                   <div className="class-card-header">
                     <h3>{className}</h3>
                     <span className="period-badge">{classData.periods.length} periods</span>
@@ -115,9 +115,6 @@ function TeacherDashboard() {
                   <div className="class-card-body">
                     <p><strong>Department:</strong> {classData.department}</p>
                     <p><strong>Academic Year:</strong> {classData.academic_year || 'N/A'}</p>
-                  </div>
-                  <div className="class-card-footer">
-                    <button className="view-button">View Timetable →</button>
                   </div>
                 </div>
               ))}

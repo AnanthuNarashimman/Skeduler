@@ -5,8 +5,8 @@ from datetime import timedelta
 import os
 from engine import generate_timetable
 from excel_parser import parse_excel_to_config
-from database import init_db, save_timetable, get_all_timetables, get_timetable_by_id, delete_timetable, delete_all_timetables
-from auth import authenticate_teacher, teacher_required, get_current_teacher
+from database import init_db, save_timetable, get_all_timetables, get_timetable_by_id, delete_timetable, delete_all_timetables, update_teacher_password
+from auth import authenticate_teacher, teacher_required, get_current_teacher, check_password, hash_password
 
 app = Flask(__name__)
 CORS(app) # Enable Cross-Origin Resource Sharing
@@ -343,6 +343,45 @@ def get_teacher_timetable():
 
     except Exception as e:
         print(f"Error fetching teacher timetable: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/teacher/change-password', methods=['POST'])
+@teacher_required
+def change_teacher_password():
+    """
+    Change password for the logged-in teacher
+    """
+    try:
+        teacher = get_current_teacher()
+
+        if not teacher:
+            return jsonify({"status": "error", "message": "Teacher not found"}), 404
+
+        data = request.get_json()
+        current_password = data.get('currentPassword')
+        new_password = data.get('newPassword')
+
+        if not current_password or not new_password:
+            return jsonify({"status": "error", "message": "Both current and new passwords are required"}), 400
+
+        # Verify current password
+        if not check_password(current_password, teacher['password_hash']):
+            return jsonify({"status": "error", "message": "Current password is incorrect"}), 401
+
+        # Hash new password
+        new_password_hash = hash_password(new_password)
+
+        # Update password in database
+        success = update_teacher_password(teacher['id'], new_password_hash)
+
+        if success:
+            return jsonify({"status": "success", "message": "Password changed successfully"}), 200
+        else:
+            return jsonify({"status": "error", "message": "Failed to update password"}), 500
+
+    except Exception as e:
+        print(f"Error changing password: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 

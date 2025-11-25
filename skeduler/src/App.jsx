@@ -14,6 +14,7 @@ import ViewTimetables from './Pages/ViewTimetables';
 import TeacherLogin from './Pages/Teacher/TeacherLogin';
 import TeacherDashboard from './Pages/Teacher/TeacherDashboard';
 import TeacherTimetableView from './Pages/Teacher/TeacherTimetableView';
+import TeacherProfile from './Pages/Teacher/TeacherProfile';
 
 function App() {
 
@@ -37,6 +38,11 @@ function App() {
           <Route path='/teacher/timetable' element={
             <ProtectedRoute>
               <TeacherTimetableView />
+            </ProtectedRoute>
+          } />
+          <Route path='/teacher/profile' element={
+            <ProtectedRoute>
+              <TeacherProfile />
             </ProtectedRoute>
           } />
         </Routes>
