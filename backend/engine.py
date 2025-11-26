@@ -17,7 +17,9 @@ def solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise
     # Create assignment variables
     for c in all_classes:
         # Combine subjects and labs for assignment
-        full_subject_list = class_data[c]['subjects'] + class_data[c]['labs']
+        full_subject_list = (class_data[c]['subjects'] + 
+                             class_data[c]['labs'] + 
+                             class_data[c]['tutorials'])
         
         for s_name in full_subject_list:
             if s_name in staff_expertise:
@@ -28,7 +30,9 @@ def solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise
 
     # Constraint: Each subject must have exactly one staff member assigned
     for c in all_classes:
-        full_subject_list = class_data[c]['subjects'] + class_data[c]['labs']
+        full_subject_list = (class_data[c]['subjects'] + 
+                             class_data[c]['labs'] + 
+                             class_data[c]['tutorials'])
         for s_name in full_subject_list:
             if s_name in staff_expertise:
                 c_i, s_i = class_idx[c], subject_idx[s_name]
@@ -46,7 +50,9 @@ def solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise
         st_i = staff_idx[st_name]
         total_periods = []
         for c in all_classes:
-            full_subject_list = class_data[c]['subjects'] + class_data[c]['labs']
+            full_subject_list = (class_data[c]['subjects'] + 
+                                 class_data[c]['labs'] + 
+                                 class_data[c]['tutorials'])
             for s_name in full_subject_list:
                 if s_name in staff_expertise and st_name in staff_expertise[s_name]:
                     c_i, s_i = class_idx[c], subject_idx[s_name]
@@ -67,7 +73,9 @@ def solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise
         fixed_assignments = {}
         for c in all_classes:
             class_assignments = {}
-            full_subject_list = class_data[c]['subjects'] + class_data[c]['labs']
+            full_subject_list = (class_data[c]['subjects'] + 
+                                 class_data[c]['labs'] + 
+                                 class_data[c]['tutorials'])
             for s_name in full_subject_list:
                 if s_name in staff_expertise:
                     c_i, s_i = class_idx[c], subject_idx[s_name]
@@ -79,32 +87,6 @@ def solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise
             fixed_assignments[c] = class_assignments
         return fixed_assignments
     return None
-
-def get_schedulable_units(class_name, class_data, subject_idx):
-    """
-    Returns a list of subject indices that can be independently scheduled.
-    Treats elective groups as single units (using first subject as representative).
-    """
-    schedulable = []
-    elective_subjects = set()
-
-    # Collect all subjects in elective groups
-    for group in class_data[class_name]['elective_groups']:
-        for s in group:
-            elective_subjects.add(s)
-
-    # Add non-elective subjects and labs
-    full_list = class_data[class_name]['subjects'] + class_data[class_name]['labs']
-    for s_name in full_list:
-        if s_name not in elective_subjects and s_name in subject_idx:
-            schedulable.append(subject_idx[s_name])
-
-    # Add one representative from each elective group
-    for group in class_data[class_name]['elective_groups']:
-        if group and group[0] in subject_idx:
-            schedulable.append(subject_idx[group[0]])
-
-    return schedulable
 
 def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, class_data):
     """
@@ -127,17 +109,30 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
                 for s_i in range(len(all_subjects)):
                     assign[(c_i, d, p, s_i)] = model.NewBoolVar(f'assign_c{c_i}_d{d}_p{p}_s{s_i}')
     
+    # --- Lab Helpers (3 consecutive) ---
     lab_starts = {}
-    valid_lab_starts = [1, 4] # Start at Period 2 or Period 5
+    valid_lab_starts = [1, 4] # Start P2 or P5
     for c in all_classes:
         c_i = class_idx[c]
         for s_name in class_data[c]['labs']:
             if s_name in subject_idx:
                 s_i = subject_idx[s_name]
-                for d in range(num_days - 1): # No labs Saturday
+                for d in range(num_days - 1): # No Sat
                     for p in valid_lab_starts:
                         lab_starts[(c_i, d, p, s_i)] = model.NewBoolVar(f'lab_start_c{c_i}_d{d}_p{p}_s{s_i}')
-    
+
+    # --- Tutorial Helpers (2 consecutive) ---
+    tutorial_starts = {}
+    valid_tutorial_starts = [0, 1, 2, 4, 5] 
+    for c in all_classes:
+        c_i = class_idx[c]
+        for s_name in class_data[c]['tutorials']:
+            if s_name in subject_idx:
+                s_i = subject_idx[s_name]
+                for d in range(num_days - 1): # No Sat
+                    for p in valid_tutorial_starts:
+                        tutorial_starts[(c_i, d, p, s_i)] = model.NewBoolVar(f'tut_start_c{c_i}_d{d}_p{p}_s{s_i}')
+
     # --- Constraints ---
     
     # Rule 1: Single Activity per Slot (handling electives)
@@ -147,22 +142,23 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
             for p in range(num_periods):
                 all_activities = []
                 
-                # Non-elective subjects + labs
-                full_list = class_data[c]['subjects'] + class_data[c]['labs']
+                full_list = (class_data[c]['subjects'] + 
+                             class_data[c]['labs'] + 
+                             class_data[c]['tutorials'])
+                
                 non_electives = [s for s in full_list if not any(s in g for g in class_data[c]['elective_groups'])]
                 
                 for s_name in non_electives:
                     if s_name in subject_idx:
                         all_activities.append(assign[(c_i, d, p, subject_idx[s_name])])
                 
-                # Elective groups (count 1 per group)
                 for group in class_data[c]['elective_groups']:
                     if group and group[0] in subject_idx:
                         all_activities.append(assign[(c_i, d, p, subject_idx[group[0]])])
                 
                 model.Add(sum(all_activities) <= 1)
 
-        # Link electives in a group
+        # Link electives
         for group in class_data[c]['elective_groups']:
             if group and group[0] in subject_idx:
                 first_idx = subject_idx[group[0]]
@@ -181,17 +177,29 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
                 s_i = subject_idx[s_name]
                 model.Add(sum(assign[(c_i, d, p, s_i)] for d in range(num_days) for p in range(num_periods)) == count)
     
-    # Rule 3: Lab Logic
+    # Rule 3: Lab Logic (3 Periods)
     for c_i, d, p, s_i in lab_starts:
         for i in range(3):
             model.Add(assign[(c_i, d, p + i, s_i)] == 1).OnlyEnforceIf(lab_starts[(c_i, d, p, s_i)])
-            
+    
     for c in all_classes:
         c_i = class_idx[c]
         for s_name in class_data[c]['labs']:
             if s_name in subject_idx:
                 s_i = subject_idx[s_name]
                 model.Add(sum(lab_starts.get((c_i, d, p, s_i), 0) for d in range(num_days - 1) for p in valid_lab_starts) == 1)
+
+    # Rule 3.5: Tutorial Logic (2 Periods)
+    for c_i, d, p, s_i in tutorial_starts:
+        for i in range(2):
+            model.Add(assign[(c_i, d, p + i, s_i)] == 1).OnlyEnforceIf(tutorial_starts[(c_i, d, p, s_i)])
+
+    for c in all_classes:
+        c_i = class_idx[c]
+        for s_name in class_data[c]['tutorials']:
+            if s_name in subject_idx:
+                s_i = subject_idx[s_name]
+                model.Add(sum(tutorial_starts.get((c_i, d, p, s_i), 0) for d in range(num_days - 1) for p in valid_tutorial_starts) == 1)
 
     # Rule 4: Staff Conflicts
     for st_name in all_staff:
@@ -208,7 +216,7 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
                 if active:
                     model.Add(sum(active) <= 1)
 
-    # Rule 5: One Lab per Class per Day
+    # Rule 5: Lab Limits (1 per class per day)
     for c in all_classes:
         c_i = class_idx[c]
         for d in range(num_days - 1):
@@ -220,26 +228,34 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
                         daily_labs.append(lab_starts.get((c_i, d, p, s_i), 0))
             model.Add(sum(daily_labs) <= 1)
 
-    # Rule 6: First Period Diversity (Different subject in Period 0 each day)
+    # Rule 6: First Period Diversity (NEW CONSTRAINT)
+    # Ensure that for each class, the subject assigned to the first period (index 0) 
+    # is different for every day of the week.
+    for c_i in range(len(all_classes)):
+        for s_i in range(len(all_subjects)):
+            # Sum of times this specific subject appears in Period 0 across all days
+            first_period_appearances = sum(assign[(c_i, d, 0, s_i)] for d in range(num_days))
+            # It can appear at most once in the first period slot for the entire week
+            model.Add(first_period_appearances <= 1)
+
+    # Rule 7: Library (Period 4 or 7)
+    library_subjects = ['LIB_HH', 'Library']
+    valid_library_periods = [3, 6]
     for c in all_classes:
         c_i = class_idx[c]
-        schedulable_units = get_schedulable_units(c, class_data, subject_idx)
-
-        # For each pair of days, ensure different subjects in Period 0
-        for d1 in range(num_days):
-            for d2 in range(d1 + 1, num_days):
-                # Collect which subjects are scheduled in Period 0 on each day
-                for s_i in schedulable_units:
-                    # If subject s_i is in Period 0 on day d1, it cannot be in Period 0 on day d2
-                    both_scheduled = model.NewBoolVar(f'both_p0_c{c_i}_d{d1}_d{d2}_s{s_i}')
-                    model.AddBoolAnd([assign[(c_i, d1, 0, s_i)], assign[(c_i, d2, 0, s_i)]]).OnlyEnforceIf(both_scheduled)
-                    model.AddBoolOr([assign[(c_i, d1, 0, s_i)].Not(), assign[(c_i, d2, 0, s_i)].Not()]).OnlyEnforceIf(both_scheduled.Not())
-                    model.Add(both_scheduled == 0)  # Ensure it's always false (no subject appears in Period 0 on two different days)
+        full_list = class_data[c]['subjects']
+        for s_name in full_list:
+            if s_name in library_subjects and s_name in subject_idx:
+                s_i = subject_idx[s_name]
+                for d in range(num_days):
+                    for p in range(num_periods):
+                        if p not in valid_library_periods:
+                            model.Add(assign[(c_i, d, p, s_i)] == 0)
 
     # Optimization: Minimize Repetition
     core_subjects = [
         s for s in all_subjects 
-        if '_Lab' not in s 
+        if '_Lab' not in s and '_Tutorial' not in s
         and s not in ['PW', 'T&P', 'DS-I', 'SSD-III', 'BC', 'CS', 'LIB_HH', 'MH'] 
         and not any(s in g for c_data in class_data.values() for g in c_data['elective_groups'])
     ]
@@ -251,7 +267,7 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
             if s_name in core_subjects and s_name in subject_idx:
                 s_i = subject_idx[s_name]
                 for d in range(num_days):
-                    model.Add(sum(assign[(c_i, d, p, s_i)] for p in range(num_periods)) <= 2) # Hard limit
+                    model.Add(sum(assign[(c_i, d, p, s_i)] for p in range(num_periods)) <= 2)
                     
                     is_repeated = model.NewBoolVar(f'rep_c{c_i}_d{d}_s{s_i}')
                     daily_sum = sum(assign[(c_i, d, p, s_i)] for p in range(num_periods))
@@ -289,7 +305,6 @@ def solve_scheduling(all_classes, all_staff, all_subjects, fixed_assignments, cl
 def generate_timetable(data):
     """
     Main entry point.
-    Data comes directly from excel_parser.py structure.
     """
     all_classes = data['classes']
     all_staff = data['staff']
@@ -298,40 +313,34 @@ def generate_timetable(data):
     class_data = data['class_data']
 
     # --- Dynamic Period Calculation ---
-    # We must calculate 'periods_per_subject' because the parser leaves it empty.
     for c in all_classes:
-        # Heuristics for standard periods
-        ideal = {'lecture': 5, 'lab': 3, 'other': 1, 'pw': 4, 'tp': 4, 'ds': 3, 'ssd': 3, 'bc': 3, 'cs': 2, 'elective': 5}
+        ideal = {'lecture': 5, 'lab': 3, 'tutorial': 2, 'other': 1, 'pw': 4, 'tp': 4, 'ds': 3, 'ssd': 3, 'bc': 3, 'cs': 2, 'elective': 5}
         periods = defaultdict(int)
         
-        # 1. Assign Labs (Fixed 3 periods)
+        # 1. Assign Labs
         for s_name in class_data[c]['labs']:
             periods[s_name] = ideal['lab']
+
+        # 2. Assign Tutorials
+        for s_name in class_data[c]['tutorials']:
+            periods[s_name] = ideal['tutorial']
             
-        # 2. Assign Known Special Subjects (Heuristic matching)
+        # 3. Assign Known Special Subjects
         for s_name in class_data[c]['subjects']:
             if s_name in ['PW', 'T&P']: periods[s_name] = ideal['pw']
             elif s_name in ['DS-I', 'SSD-III']: periods[s_name] = ideal['ssd']
             elif s_name in ['BC', 'CS']: periods[s_name] = ideal['bc']
             elif s_name in ['LIB_HH', 'MH']: periods[s_name] = ideal['other']
             
-        # 3. Assign Electives
+        # 4. Assign Electives
         for group in class_data[c]['elective_groups']:
             for s_name in group:
                 periods[s_name] = ideal['elective']
         
-        # 4. Distribute Remaining to Core Lectures
-        # Core = Subjects that are NOT labs and NOT already assigned a period count
-        core_lectures = [
-            s for s in class_data[c]['subjects'] 
-            if s not in periods
-        ]
+        # 5. Distribute Remaining
+        core_lectures = [s for s in class_data[c]['subjects'] if s not in periods and '_Lab' not in s and s in staff_expertise]
         
-        # Calculate used slots
-        # Note: Elective groups only consume slots for ONE subject in the group
         elective_cost = sum(ideal['elective'] for g in class_data[c]['elective_groups'])
-        
-        # Sum of all fixed periods (excluding raw elective subjects, using group cost instead)
         fixed_sum = sum(v for k,v in periods.items() if not any(k in g for g in class_data[c]['elective_groups']))
         
         current_total = fixed_sum + elective_cost
@@ -343,18 +352,16 @@ def generate_timetable(data):
             for i, s_name in enumerate(core_lectures):
                 periods[s_name] = base + (1 if i < rem else 0)
         
-        # Save back to class_data so solvers can use it
         class_data[c]['periods_per_subject'] = periods
 
-    # --- Run Optimization ---
     assignments = solve_staff_assignment(all_classes, all_staff, all_subjects, staff_expertise, class_data)
     
     if not assignments:
-        return {"status": "error", "message": "Staff Assignment Failed (Workload/Qualification Imbalance)"}
+        return {"status": "error", "message": "Staff Assignment Failed"}
         
     schedule = solve_scheduling(all_classes, all_staff, all_subjects, assignments, class_data)
     
     if schedule:
         return {"status": "success", "schedule": schedule}
     else:
-        return {"status": "error", "message": "Scheduling Failed (Time/Room Conflict)"}
+        return {"status": "error", "message": "Scheduling Failed (Over-constrained)"}
