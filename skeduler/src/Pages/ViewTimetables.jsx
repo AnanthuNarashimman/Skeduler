@@ -267,9 +267,9 @@ function ViewTimetables() {
                           <React.Fragment key={dayIdx}>
                             <div className="grid-cell day-cell">{dayName}</div>
                             {(schedule[className][dayIdx.toString()] || []).map((subject, pIdx) => (
-                              <div 
-                                key={pIdx} 
-                                className={`grid-cell content-cell ${subject.includes('Lab') ? 'lab-cell' : ''} ${subject === "--- FREE ---" ? 'free-cell' : ''}`}
+                              <div
+                                key={pIdx}
+                                className={`grid-cell content-cell ${subject.includes('Lab') ? 'lab-cell' : ''} ${subject.includes('Tutorial') ? 'tutorial-cell' : ''} ${subject === "--- FREE ---" ? 'free-cell' : ''}`}
                               >
                                 {subject}
                               </div>

@@ -113,7 +113,7 @@ function TeacherTimetableView() {
                   return (
                     <div
                       key={`${dayIdx}-${periodIdx}`}
-                      className={`timetable-cell content-cell ${periodData ? 'teacher-period' : 'free-period'} ${periodData?.subject.toLowerCase().includes('lab') ? 'lab-cell' : ''}`}
+                      className={`timetable-cell content-cell ${periodData ? 'teacher-period' : 'free-period'} ${periodData?.subject.toLowerCase().includes('lab') ? 'lab-cell' : ''} ${periodData?.subject.toLowerCase().includes('tutorial') ? 'tutorial-cell' : ''}`}
                     >
                       {periodData ? (
                         <>

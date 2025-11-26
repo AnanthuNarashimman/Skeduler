@@ -424,6 +424,13 @@
   border-left: 3px solid #f97316;
 }
 
+.tutorial-cell {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: #15803d;
+  font-weight: 600;
+  border-left: 3px solid #22c55e;
+}
+
 .free-cell {
   color: #cbd5e1;
   font-style: italic;
