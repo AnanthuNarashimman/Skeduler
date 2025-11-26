@@ -4,13 +4,7 @@ from collections import defaultdict
 def parse_excel_to_config(file_path):
     """
     Reads an Excel file and converts it into the JSON structure required by engine.py.
-    
-    The Excel file is expected to have columns:
-    - 'Class': e.g., 'III_SEM_A'
-    - 'Subject': e.g., 'DMS' or 'DSA_Lab'
-    - 'Staff': e.g., 'Mr. T. Bhaskar'
-    - 'Type': 'Lecture', 'Lab', 'Tutorial', or 'Special' (Optional)
-    - 'Elective Group': e.g., 'Group_1' (Optional)
+    Handles comma-separated staff names correctly.
     """
     try:
         df = pd.read_excel(file_path)
@@ -29,13 +23,23 @@ def parse_excel_to_config(file_path):
         
         # Extract unique lists
         data["classes"] = sorted(df['Class'].dropna().unique().tolist())
-        data["staff"] = sorted(df['Staff'].dropna().unique().tolist())
         data["subjects"] = sorted(df['Subject'].dropna().unique().tolist())
+        
+        # Use a set to collect unique staff names after splitting
+        staff_set = set()
         
         for _, row in df.iterrows():
             c_name = str(row['Class']).strip()
             s_name = str(row['Subject']).strip()
-            st_name = str(row['Staff']).strip()
+            
+            # Handle Staff (Split by comma if multiple names are provided)
+            raw_staff = str(row['Staff']).strip()
+            # This splits "Mr. A, Mr. B" into ["Mr. A", "Mr. B"]
+            current_row_staff = [s.strip() for s in raw_staff.split(',') if s.strip()]
+            
+            # Add to master staff list
+            for st in current_row_staff:
+                staff_set.add(st)
             
             # Determine Type
             sType = row.get('Type', 'Lecture')
@@ -47,9 +51,10 @@ def parse_excel_to_config(file_path):
             if pd.isna(eGroup) or str(eGroup).strip() == "": eGroup = None
             else: eGroup = str(eGroup).strip()
             
-            # 1. Build Staff Expertise
-            if st_name not in data["staff_expertise"][s_name]:
-                data["staff_expertise"][s_name].append(st_name)
+            # 1. Build Staff Expertise Mapping
+            for st_name in current_row_staff:
+                if st_name not in data["staff_expertise"][s_name]:
+                    data["staff_expertise"][s_name].append(st_name)
                 
             # 2. Build Class Data Structure
             if c_name not in data["class_data"]:
@@ -58,12 +63,12 @@ def parse_excel_to_config(file_path):
                     "labs": [],
                     "tutorials": [],
                     "elective_groups": [],
-                    "periods_per_subject": {} # Calculated by engine
+                    "periods_per_subject": {} 
                 }
             
             class_entry = data["class_data"][c_name]
             
-            # Categorize Subject based on Type column OR Name convention
+            # Categorize Subject
             is_lab = "Lab" in s_name or sType == "Lab"
             is_tutorial = "Tutorial" in s_name or sType == "Tutorial"
             
@@ -92,6 +97,8 @@ def parse_excel_to_config(file_path):
                         c_data['elective_groups'].append(group_subjects)
                 del c_data['_temp_groups']
         
+        # Finalize staff list
+        data["staff"] = sorted(list(staff_set))
         data["staff_expertise"] = dict(data["staff_expertise"])
         
         return data
