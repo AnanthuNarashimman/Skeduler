@@ -1,108 +1,142 @@
 import pandas as pd
+import re
 from collections import defaultdict
 
 def parse_excel_to_config(file_path):
     """
-    Reads an Excel file and converts it into the JSON structure required by engine.py.
-    Handles comma-separated staff names correctly.
+    Reads the 'CSE Staff Allocations' Excel/CSV.
+    Handles complex staff strings, combined classes, and specific types.
     """
     try:
-        df = pd.read_excel(file_path)
+        # distinct logic for csv vs xlsx
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path)
+        else:
+            df = pd.read_excel(file_path)
         
-        # Normalize column names
+        # Normalize headers
         df.columns = [c.strip() for c in df.columns]
         
-        # Initialize structure
         data = {
             "classes": [],
             "staff": [],
             "subjects": [],
-            "staff_expertise": defaultdict(list),
             "class_data": {}
         }
         
-        # Extract unique lists
-        data["classes"] = sorted(df['Class'].dropna().unique().tolist())
-        data["subjects"] = sorted(df['Subject'].dropna().unique().tolist())
-        
-        # Use a set to collect unique staff names after splitting
+        classes_set = set()
         staff_set = set()
-        
-        for _, row in df.iterrows():
-            c_name = str(row['Class']).strip()
-            s_name = str(row['Subject']).strip()
-            
-            # Handle Staff (Split by comma if multiple names are provided)
-            raw_staff = str(row['Staff']).strip()
-            # This splits "Mr. A, Mr. B" into ["Mr. A", "Mr. B"]
-            current_row_staff = [s.strip() for s in raw_staff.split(',') if s.strip()]
-            
-            # Add to master staff list
-            for st in current_row_staff:
-                staff_set.add(st)
-            
-            # Determine Type
-            sType = row.get('Type', 'Lecture')
-            if pd.isna(sType): sType = 'Lecture'
-            else: sType = str(sType).strip()
-            
-            # Determine Elective Group
-            eGroup = row.get('Elective Group', None)
-            if pd.isna(eGroup) or str(eGroup).strip() == "": eGroup = None
-            else: eGroup = str(eGroup).strip()
-            
-            # 1. Build Staff Expertise Mapping
-            for st_name in current_row_staff:
-                if st_name not in data["staff_expertise"][s_name]:
-                    data["staff_expertise"][s_name].append(st_name)
-                
-            # 2. Build Class Data Structure
-            if c_name not in data["class_data"]:
-                data["class_data"][c_name] = {
-                    "subjects": [],
-                    "labs": [],
-                    "tutorials": [],
-                    "elective_groups": [],
-                    "periods_per_subject": {} 
-                }
-            
-            class_entry = data["class_data"][c_name]
-            
-            # Categorize Subject
-            is_lab = "Lab" in s_name or sType == "Lab"
-            is_tutorial = "Tutorial" in s_name or sType == "Tutorial"
-            
-            if is_lab:
-                if s_name not in class_entry["labs"]:
-                    class_entry["labs"].append(s_name)
-            elif is_tutorial:
-                if s_name not in class_entry["tutorials"]:
-                    class_entry["tutorials"].append(s_name)
-            else:
-                if s_name not in class_entry["subjects"]:
-                    class_entry["subjects"].append(s_name)
-            
-            # Handle Elective Groups
-            if eGroup:
-                if '_temp_groups' not in class_entry:
-                    class_entry['_temp_groups'] = defaultdict(list)
-                if s_name not in class_entry['_temp_groups'][eGroup]:
-                    class_entry['_temp_groups'][eGroup].append(s_name)
+        subjects_set = set()
 
-        # Cleanup Elective Groups
+        for _, row in df.iterrows():
+            raw_class = str(row['Class']).strip()
+            s_name = str(row['Subject']).strip()
+            raw_staff = str(row['Staff']).strip() if pd.notna(row['Staff']) else "TBA"
+            sType = str(row.get('Type', 'Lecture')).strip()
+            eGroup = str(row.get('Elective Group', '')).strip()
+            if eGroup == 'nan': eGroup = ""
+
+            # 1. Handle Class Names (Split "VI_SEM_A & B" before normalization)
+            class_names = []
+            if '&' in raw_class:
+                # Example: "VI_SEM_A & B" -> ["VI_SEM_A", "VI_SEM_B"]
+                parts = raw_class.split('&')
+                base_part = parts[0].strip()  # "VI_SEM_A" or "VI SEM A"
+                suffix = parts[1].strip()     # "B"
+
+                # Normalize the base part
+                base_part = re.sub(r'\s+', '_', base_part)
+                base_part = re.sub(r'_+', '_', base_part)
+
+                class_names.append(base_part)
+
+                # Construct the second class name by replacing the last character
+                if base_part.endswith('_A'):
+                    # "VI_SEM_A" -> "VI_SEM_B"
+                    class_names.append(base_part[:-1] + suffix)
+                elif base_part.endswith('A'):
+                    # Less common case
+                    class_names.append(base_part[:-1] + suffix)
+                else:
+                    # Fallback: just append the suffix
+                    class_names.append(base_part + '_' + suffix)
+            else:
+                # Normalize class name - remove extra spaces and standardize format
+                normalized = re.sub(r'\s+', '_', raw_class)
+                normalized = re.sub(r'_+', '_', normalized)
+                class_names.append(normalized)
+
+            # 2. Handle Staff Names (Robust Split)
+            # Split by comma, slash, newline, or when a new title appears (Mr., Dr., Mrs., Ms.)
+            # First, normalize separators - handle newlines and slashes
+            clean_staff = raw_staff.replace('\n', ',').replace('/', ',')
+
+            # Handle cases where staff names are separated by title patterns without commas
+            # Example: "Mr. K. R. Natarajan Mr. T. Bhaskar" -> "Mr. K. R. Natarajan, Mr. T. Bhaskar"
+            for title in [' Mr.', ' Dr.', ' Mrs.', ' Ms.']:
+                clean_staff = clean_staff.replace(title, ',' + title.strip())
+
+            # Now split by comma and clean up
+            staff_list = [s.strip() for s in clean_staff.split(',') if s.strip() and s.strip().lower() != 'nan']
+            
+            # 3. Process for EACH class found
+            for c_name in class_names:
+                classes_set.add(c_name)
+                subjects_set.add(s_name)
+                for s in staff_list:
+                    staff_set.add(s)
+
+                if c_name not in data["class_data"]:
+                    data["class_data"][c_name] = {
+                        "subjects": [], "labs": [], "tutorials": [],
+                        "integrated": [], "special": [],
+                        "elective_groups": [],
+                        "assignments": {},
+                        "periods_per_subject": {}
+                    }
+                
+                c_data = data["class_data"][c_name]
+
+                # Categorize Subject
+                # Check for "Integrated Lab" explicitly
+                is_special = sType == "Special"
+                is_integrated = ("Integrated" in sType or "Integrated" in s_name) and not is_special
+                is_lab = ("Lab" in s_name or "LAB" in s_name or sType == "Lab") and not is_integrated and not is_special
+                is_tutorial = "Tutorial" in sType and not is_special
+
+                if is_special:
+                    if s_name not in c_data["special"]: c_data["special"].append(s_name)
+                elif is_integrated:
+                    if s_name not in c_data["integrated"]: c_data["integrated"].append(s_name)
+                elif is_lab:
+                    if s_name not in c_data["labs"]: c_data["labs"].append(s_name)
+                elif is_tutorial:
+                    if s_name not in c_data["tutorials"]: c_data["tutorials"].append(s_name)
+                else:
+                    if s_name not in c_data["subjects"]: c_data["subjects"].append(s_name)
+
+                c_data["assignments"][s_name] = staff_list
+
+                if eGroup:
+                    if '_temp_groups' not in c_data:
+                        c_data['_temp_groups'] = defaultdict(list)
+                    if s_name not in c_data['_temp_groups'][eGroup]:
+                        c_data['_temp_groups'][eGroup].append(s_name)
+
+        # Finalize Groups
         for c_name, c_data in data["class_data"].items():
             if '_temp_groups' in c_data:
-                for group_subjects in c_data['_temp_groups'].values():
-                    if len(group_subjects) > 1:
-                        c_data['elective_groups'].append(group_subjects)
+                for group in c_data['_temp_groups'].values():
+                    if len(group) > 1:
+                        c_data['elective_groups'].append(group)
                 del c_data['_temp_groups']
-        
-        # Finalize staff list
+
+        data["classes"] = sorted(list(classes_set))
         data["staff"] = sorted(list(staff_set))
-        data["staff_expertise"] = dict(data["staff_expertise"])
+        data["subjects"] = sorted(list(subjects_set))
         
         return data
 
     except Exception as e:
-        print(f"Error parsing Excel file: {e}")
+        print(f"Error parsing file: {e}")
         raise e

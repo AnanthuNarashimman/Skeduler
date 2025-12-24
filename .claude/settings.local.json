@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(backend/venv/Scripts/python.exe:*)",
+      "Bash(venv/Scripts/python.exe test_scheduler.py)",
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(del test_scheduler.py check_staff.py)"
+    ]
+  }
+}
