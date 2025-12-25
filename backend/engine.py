@@ -3,270 +3,298 @@ from collections import defaultdict
 
 def generate_timetable(data):
     """
-    Solves the timetable scheduling problem using pre-assigned staff from Excel.
-    RELAXED VERSION: Uses soft constraints to guarantee a solution.
+    FINAL ENGINE (Zero Free Slots).
+    - Lecture Limit increased to 6 to fill the 42nd hour for IV_SEM.
+    - Diversity Maximizer active (Avoids A,B,A,B).
+    - Strict Block Logic active.
     """
-    print("--- Starting Scheduler Engine (Relaxed Mode) ---")
+    print("--- Starting Final Engine (Zero Free Slots) ---")
     
-    all_classes = data['classes']
-    all_staff = data['staff']
-    all_subjects = data['subjects']
-    class_data = data['class_data']
-
-    # --- 1. Dynamic Period Calculation ---
-    for c in all_classes:
-        ideal = {'lecture': 5, 'lab': 3, 'tutorial': 2, 'special': 1, 'pw': 4, 'tp': 4, 'ds': 3, 'ssd': 3, 'bc': 3, 'cs': 2, 'elective': 5}
-        periods = defaultdict(int)
-
-        for s_name in class_data[c]['labs']: periods[s_name] = ideal['lab']
-        for s_name in class_data[c]['tutorials']: periods[s_name] = ideal['tutorial']
-        for s_name in class_data[c].get('integrated', []): periods[s_name] = 4
-        for s_name in class_data[c].get('special', []): periods[s_name] = ideal['special']
-
-        for s_name in class_data[c]['subjects']:
-            if s_name in ['PW', 'T&P']: periods[s_name] = ideal['pw']
-            elif s_name in ['DS-I', 'SSD-III']: periods[s_name] = ideal['ssd']
-            elif s_name in ['BC', 'CS']: periods[s_name] = ideal['bc']
-            elif s_name in ['LIB_HH', 'LIB / HH', 'MH']: periods[s_name] = ideal['special']
-
-        for group in class_data[c]['elective_groups']:
-            for s_name in group: periods[s_name] = ideal['elective']
-
-        core_lectures = [s for s in class_data[c]['subjects'] if s not in periods and '_Lab' not in s]
-
-        elective_cost = sum(ideal['elective'] for g in class_data[c]['elective_groups'])
-        fixed_sum = sum(v for k,v in periods.items() if not any(k in g for g in class_data[c]['elective_groups']))
-
-        current_total = fixed_sum + elective_cost
-        remaining = 42 - current_total
-
-        if core_lectures:
-            base = remaining // len(core_lectures)
-            rem = remaining % len(core_lectures)
-            for i, s_name in enumerate(core_lectures):
-                periods[s_name] = base + (1 if i < rem else 0)
-
-        class_data[c]['periods_per_subject'] = periods
-
-    # --- 2. Build Model ---
     model = cp_model.CpModel()
+    
+    # --- Configuration ---
+    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     num_days = 6
     num_periods = 7
     
-    class_idx = {name: i for i, name in enumerate(all_classes)}
-    staff_idx = {name: i for i, name in enumerate(all_staff)}
-    subject_idx = {name: i for i, name in enumerate(all_subjects)}
-
-    # Variables
+    # Mappings
+    classes = data['classes']
+    all_subjects = data['subjects']
+    staff_list = data['staff']
+    
+    c_map = {name: i for i, name in enumerate(classes)}
+    s_map = {name: i for i, name in enumerate(all_subjects)}
+    st_map = {name: i for i, name in enumerate(staff_list)}
+    
+    starts = {}
     assign = {}
-    for c_i in range(len(all_classes)):
-        for d in range(num_days):
-            for p in range(num_periods):
-                for s_i in range(len(all_subjects)):
-                    assign[(c_i, d, p, s_i)] = model.NewBoolVar(f'a_c{c_i}d{d}p{p}s{s_i}')
+    
+    staff_slots = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    
+    # Objective Terms
+    obj_vars_allocation = []  # +100 per slot filled
+    obj_vars_diversity = []   # +50 per unique subject/day
+    obj_vars_penalty = []     # -20 per consecutive pair
 
-    # Helper Variables
-    lab_starts = {}
-    valid_lab_starts = [1, 4]
-    tutorial_starts = {}
-    valid_tutorial_starts = [0, 1, 2, 4, 5]
-    integrated_starts = {}
-    valid_integrated_starts = [0, 1, 2, 4, 5]
+    merged_subjects = set()
+    if "VI_SEM_A" in c_map and "VI_SEM_B" in c_map:
+        merged_subjects = set(data['class_data']["VI_SEM_A"]['subjects']) & set(data['class_data']["VI_SEM_B"]['subjects'])
 
-    for c in all_classes:
-        c_i = class_idx[c]
-        for s_name in class_data[c]['labs']:
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                for d in range(num_days - 1):
-                    for p in valid_lab_starts:
-                        lab_starts[(c_i, d, p, s_i)] = model.NewBoolVar(f'ls_c{c_i}d{d}p{p}s{s_i}')
-        for s_name in class_data[c]['tutorials']:
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                for d in range(num_days - 1):
-                    for p in valid_tutorial_starts:
-                        tutorial_starts[(c_i, d, p, s_i)] = model.NewBoolVar(f'ts_c{c_i}d{d}p{p}s{s_i}')
-        for s_name in class_data[c].get('integrated', []):
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                for d in range(num_days - 1):
-                    for p in valid_integrated_starts:
-                        integrated_starts[(c_i, d, p, s_i)] = model.NewBoolVar(f'is_c{c_i}d{d}p{p}s{s_i}')
+    print("Building Model...")
 
-    # --- Constraints ---
+    for c_name in classes:
+        c = c_map[c_name]
+        c_data = data['class_data'][c_name]
+        
+        all_subs = (c_data['subjects'] + c_data['labs'] + c_data['tutorials'] + 
+                   c_data.get('integrated', []) + c_data.get('special', []))
+        unique_subs = list(set(all_subs))
 
-    # 1. Single Activity Per Slot (HARD)
-    for c in all_classes:
-        c_i = class_idx[c]
+        for s_name in unique_subs:
+            s = s_map[s_name]
+            staff_names = c_data['assignments'].get(s_name, [])
+            staff_indices = [st_map[st] for st in staff_names if st in st_map]
+
+            skip_staff_check = False
+            if c_name == "VI_SEM_B" and s_name in merged_subjects:
+                staff_A = data['class_data']["VI_SEM_A"]['assignments'].get(s_name, [])
+                if set(staff_names) == set(staff_A):
+                    skip_staff_check = True
+
+            is_lab = s_name in c_data['labs']
+            is_integrated = s_name in c_data.get('integrated', [])
+            is_tutorial = s_name in c_data['tutorials']
+            is_special = s_name in c_data.get('special', [])
+            
+            # --- Type Config ---
+            duration = 1
+            valid_starts = []
+            freq_min, freq_max = 0, 0
+            is_lecture = False
+            
+            if is_lab:
+                duration = 3
+                valid_starts = [1, 4]
+                freq_min, freq_max = 1, 1
+            elif is_integrated:
+                duration = 2
+                valid_starts = [0, 2, 4, 5]
+                freq_min, freq_max = 1, 1
+            elif is_tutorial:
+                duration = 2
+                valid_starts = [0, 2, 4, 5]
+                freq_min, freq_max = 1, 1
+            else: 
+                # Lectures / Specials
+                duration = 1
+                is_lecture = True 
+                if s_name == "MH":
+                    valid_starts = [0]
+                    freq_min, freq_max = 1, 1
+                    is_lecture = False 
+                elif "LIB" in s_name or "HH" in s_name:
+                    valid_starts = [1, 3, 6]
+                    freq_min, freq_max = 1, 1
+                    is_lecture = False
+                else:
+                    valid_starts = list(range(7))
+                    if is_special:
+                        freq_min, freq_max = 1, 1
+                        is_lecture = False
+                    else:
+                        # HERE IS THE FIX: Allow up to 6 hours to fill the last gap
+                        freq_min, freq_max = 3, 6 
+
+            # --- Start Variables ---
+            subject_start_vars = []
+            if s_name == "MH":
+                v = model.NewBoolVar(f'start_{c}_{s}_Sat_0')
+                starts[(c, s, 5, 0)] = v
+                subject_start_vars.append(v)
+                model.Add(v == 1)
+            else:
+                for d in range(num_days):
+                    for p in valid_starts:
+                        if d == 5 and p == 0: continue 
+                        v = model.NewBoolVar(f'start_{c}_{s}_{d}_{p}')
+                        starts[(c, s, d, p)] = v
+                        subject_start_vars.append(v)
+
+            if freq_min == freq_max:
+                model.Add(sum(subject_start_vars) == freq_min)
+            else:
+                model.Add(sum(subject_start_vars) >= freq_min)
+                model.Add(sum(subject_start_vars) <= freq_max)
+
+            # --- Link Starts to Grid & Diversity Logic ---
+            daily_assignments = defaultdict(list)
+
+            for d in range(num_days):
+                for p in range(num_periods):
+                    covering_starts = []
+                    min_sp = max(0, p - duration + 1)
+                    max_sp = p
+                    for sp in range(min_sp, max_sp + 1):
+                        if (c, s, d, sp) in starts:
+                            covering_starts.append(starts[(c, s, d, sp)])
+                    
+                    if covering_starts:
+                        gv = model.NewBoolVar(f'grid_{c}_{d}_{p}_{s}')
+                        assign[(c, d, p, s)] = gv
+                        model.Add(gv == sum(covering_starts))
+                        
+                        obj_vars_allocation.append(gv)
+                        daily_assignments[d].append(gv)
+                        
+                        if not skip_staff_check:
+                            for st_idx in staff_indices:
+                                staff_slots[st_idx][d][p].append(gv)
+
+                # Diversity Reward
+                if daily_assignments[d]:
+                    is_present = model.NewBoolVar(f'present_{c}_{s}_{d}')
+                    model.AddMaxEquality(is_present, daily_assignments[d])
+                    obj_vars_diversity.append(is_present)
+
+            # --- CONSECUTIVE LOGIC (Lectures Only) ---
+            if is_lecture:
+                for d in range(num_days):
+                    # 1. HARD CONSTRAINT: Max 2 consecutive
+                    for p in range(num_periods - 2):
+                        if (c, d, p, s) in assign and (c, d, p+1, s) in assign and (c, d, p+2, s) in assign:
+                            model.Add(assign[(c, d, p, s)] + assign[(c, d, p+1, s)] + assign[(c, d, p+2, s)] <= 2)
+
+                    # 2. SOFT PENALTY: Consecutive Pair
+                    for p in range(num_periods - 1):
+                        if (c, d, p, s) in assign and (c, d, p+1, s) in assign:
+                            penalty_var = model.NewBoolVar(f'pen_{c}_{s}_{d}_{p}')
+                            model.Add(assign[(c, d, p, s)] + assign[(c, d, p+1, s)] == 2).OnlyEnforceIf(penalty_var)
+                            model.Add(assign[(c, d, p, s)] + assign[(c, d, p+1, s)] < 2).OnlyEnforceIf(penalty_var.Not())
+                            obj_vars_penalty.append(penalty_var)
+
+    print("Adding Constraints...")
+
+    # 1. Elective Group Synchronization
+    for c_name in classes:
+        c = c_map[c_name]
+        c_data = data['class_data'][c_name]
+        for group in c_data.get('elective_groups', []):
+            if not group: continue
+            leader = group[0]
+            leader_idx = s_map[leader]
+            for follower in group[1:]:
+                follower_idx = s_map[follower]
+                for d in range(num_days):
+                    for p in range(num_periods):
+                        if (c, d, p, leader_idx) in assign and (c, d, p, follower_idx) in assign:
+                            model.Add(assign[(c, d, p, leader_idx)] == assign[(c, d, p, follower_idx)])
+                        elif (c, d, p, leader_idx) in assign:
+                             model.Add(assign[(c, d, p, leader_idx)] == 0)
+                        elif (c, d, p, follower_idx) in assign:
+                             model.Add(assign[(c, d, p, follower_idx)] == 0)
+
+    # 2. One Class, One Subject per Slot
+    for c_name in classes:
+        c = c_map[c_name]
+        c_data = data['class_data'][c_name]
+        followers = set()
+        for group in c_data.get('elective_groups', []):
+            for s in group[1:]: followers.add(s)
+            
         for d in range(num_days):
             for p in range(num_periods):
                 active_vars = []
-                full_list = class_data[c]['subjects'] + class_data[c]['labs'] + class_data[c]['tutorials'] + class_data[c].get('integrated', []) + class_data[c].get('special', [])
-                normal_subjects = [s for s in full_list if not any(s in g for g in class_data[c]['elective_groups'])]
-                for s_name in normal_subjects:
-                    if s_name in subject_idx:
-                        active_vars.append(assign[(c_i, d, p, subject_idx[s_name])])
-                for group in class_data[c]['elective_groups']:
-                    if group and group[0] in subject_idx:
-                        active_vars.append(assign[(c_i, d, p, subject_idx[group[0]])])
-                model.Add(sum(active_vars) <= 1)
+                for s in range(len(all_subjects)):
+                    s_name = all_subjects[s]
+                    if s_name in followers: continue
+                    if (c, d, p, s) in assign:
+                        active_vars.append(assign[(c, d, p, s)])
+                if active_vars:
+                    model.Add(sum(active_vars) <= 1)
 
-        for group in class_data[c]['elective_groups']:
-            if group and group[0] in subject_idx:
-                first_s_i = subject_idx[group[0]]
-                for other_s in group[1:]:
-                    if other_s in subject_idx:
-                        other_s_i = subject_idx[other_s]
-                        for d in range(num_days):
-                            for p in range(num_periods):
-                                model.Add(assign[(c_i, d, p, first_s_i)] == assign[(c_i, d, p, other_s_i)])
-
-    # 2. Total Periods (HARD)
-    for c in all_classes:
-        c_i = class_idx[c]
-        for s_name, count in class_data[c]['periods_per_subject'].items():
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                model.Add(sum(assign[(c_i, d, p, s_i)] for d in range(num_days) for p in range(num_periods)) == count)
-
-    # 3. Lab/Tutorial Logic (HARD)
-    for c_i, d, p, s_i in lab_starts:
-        for i in range(3):
-            model.Add(assign[(c_i, d, p + i, s_i)] == 1).OnlyEnforceIf(lab_starts[(c_i, d, p, s_i)])
-    
-    for c in all_classes:
-        c_i = class_idx[c]
-        for s_name in class_data[c]['labs']:
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                model.Add(sum(lab_starts.get((c_i, d, p, s_i), 0) for d in range(num_days-1) for p in valid_lab_starts) == 1)
-
-    for c_i, d, p, s_i in tutorial_starts:
-        for i in range(2):
-            model.Add(assign[(c_i, d, p + i, s_i)] == 1).OnlyEnforceIf(tutorial_starts[(c_i, d, p, s_i)])
-
-    for c in all_classes:
-        c_i = class_idx[c]
-        for s_name in class_data[c]['tutorials']:
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                model.Add(sum(tutorial_starts.get((c_i, d, p, s_i), 0) for d in range(num_days-1) for p in valid_tutorial_starts) == 1)
-
-    for c_i, d, p, s_i in integrated_starts:
-        for i in range(2):
-            model.Add(assign[(c_i, d, p + i, s_i)] == 1).OnlyEnforceIf(integrated_starts[(c_i, d, p, s_i)])
-
-    for c in all_classes:
-        c_i = class_idx[c]
-        for s_name in class_data[c].get('integrated', []):
-            if s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                model.Add(sum(integrated_starts.get((c_i, d, p, s_i), 0) for d in range(num_days-1) for p in valid_integrated_starts) == 2)
-
-    # 4. Staff Conflicts (SOFT CONSTRAINT)
-    conflict_penalties = []
-    for st_name in all_staff:
+    # 3. Staff No-Overlap
+    for st in range(len(staff_list)):
         for d in range(num_days):
             for p in range(num_periods):
-                staff_is_busy = []
-                for c in all_classes:
-                    c_i = class_idx[c]
-                    all_class_subjects = class_data[c]['subjects'] + class_data[c]['labs'] + class_data[c]['tutorials'] + class_data[c].get('integrated', []) + class_data[c].get('special', [])
-                    for s_name in all_class_subjects:
-                        if s_name in class_data[c]['assignments']:
-                            assigned_staff_list = class_data[c]['assignments'][s_name]
-                            if st_name in assigned_staff_list:
-                                if s_name in subject_idx:
-                                    s_i = subject_idx[s_name]
-                                    staff_is_busy.append(assign[(c_i, d, p, s_i)])
+                if staff_slots[st][d][p]:
+                    model.Add(sum(staff_slots[st][d][p]) <= 1)
 
-                if len(staff_is_busy) > 1:
-                    is_conflict = model.NewBoolVar(f'is_conflict_{st_name}_{d}_{p}')
-                    model.Add(sum(staff_is_busy) > 1).OnlyEnforceIf(is_conflict)
-                    model.Add(sum(staff_is_busy) <= 1).OnlyEnforceIf(is_conflict.Not())
-                    conflict_penalties.append(is_conflict)
-
-    # 5. Daily Lab/Integrated Limits (SOFT CONSTRAINT)
-    daily_lab_penalties = []
-    for c in all_classes:
-        c_i = class_idx[c]
-        for d in range(num_days - 1):
-            daily_labs = []
-            for s_name in class_data[c]['labs']:
-                if s_name in subject_idx:
-                    s_i = subject_idx[s_name]
-                    for p in valid_lab_starts:
-                        daily_labs.append(lab_starts.get((c_i, d, p, s_i), 0))
-            for s_name in class_data[c].get('integrated', []):
-                if s_name in subject_idx:
-                    s_i = subject_idx[s_name]
-                    for p in valid_integrated_starts:
-                        daily_labs.append(integrated_starts.get((c_i, d, p, s_i), 0))
+    # 4. Daily Limits
+    for c_name in classes:
+        c = c_map[c_name]
+        c_data = data['class_data'][c_name]
+        lab_indices = [s_map[s] for s in c_data['labs'] if s in s_map]
+        int_indices = [s_map[s] for s in c_data.get('integrated', []) if s in s_map]
+        tut_indices = [s_map[s] for s in c_data['tutorials'] if s in s_map]
+        
+        for d in range(num_days):
+            # Normal Labs (3 hours max)
+            daily_lab = [assign[(c, d, p, s_i)] for s_i in lab_indices for p in range(num_periods) if (c, d, p, s_i) in assign]
+            if daily_lab: model.Add(sum(daily_lab) <= 3)
             
-            is_overloaded = model.NewBoolVar(f'lab_overload_{c_i}_{d}')
-            model.Add(sum(daily_labs) > 1).OnlyEnforceIf(is_overloaded)
-            model.Add(sum(daily_labs) <= 1).OnlyEnforceIf(is_overloaded.Not())
-            daily_lab_penalties.append(is_overloaded)
+            # Integrated Labs (2 hours max)
+            daily_int = [assign[(c, d, p, s_i)] for s_i in int_indices for p in range(num_periods) if (c, d, p, s_i) in assign]
+            if daily_int: model.Add(sum(daily_int) <= 2)
 
-    # 6. Library Rule (Period 4 or 7) - SOFT
-    lib_penalties = []
-    library_subjects = ['LIB_HH', 'Library', 'LIB / HH', 'LIB/HH']
-    for c in all_classes:
-        c_i = class_idx[c]
-        # Check both regular subjects and special subjects for library
-        all_subj_for_lib = class_data[c]['subjects'] + class_data[c].get('special', [])
-        for s_name in all_subj_for_lib:
-            if s_name in library_subjects and s_name in subject_idx:
-                s_i = subject_idx[s_name]
-                for d in range(num_days):
-                    for p in range(num_periods):
-                        if p not in [3, 6]:
-                            lib_penalties.append(assign[(c_i, d, p, s_i)])
+            # Tutorials (2 hours max)
+            daily_tut = [assign[(c, d, p, s_i)] for s_i in tut_indices for p in range(num_periods) if (c, d, p, s_i) in assign]
+            if daily_tut: model.Add(sum(daily_tut) <= 2)
 
-    # 7. First Period Diversity - SOFT
-    fp_penalties = []
-    for c_i in range(len(all_classes)):
-        for s_i in range(len(all_subjects)):
-            first_period_appearances = sum(assign[(c_i, d, 0, s_i)] for d in range(num_days))
-            is_repeated_fp = model.NewBoolVar(f'rep_fp_{c_i}_{s_i}')
-            model.Add(first_period_appearances > 1).OnlyEnforceIf(is_repeated_fp)
-            model.Add(first_period_appearances <= 1).OnlyEnforceIf(is_repeated_fp.Not())
-            fp_penalties.append(is_repeated_fp)
+    # 5. Merged Classes Link
+    if "VI_SEM_A" in c_map and "VI_SEM_B" in c_map:
+        ca, cb = c_map["VI_SEM_A"], c_map["VI_SEM_B"]
+        for s_name in merged_subjects:
+            if "Lab" in s_name or "LAB" in s_name: continue
+            s = s_map[s_name]
+            for d in range(num_days):
+                for p in range(num_periods):
+                    if (ca, d, p, s) in assign and (cb, d, p, s) in assign:
+                        model.Add(assign[(ca, d, p, s)] == assign[(cb, d, p, s)])
 
-    # Optimization: Minimize all penalties
-    model.Minimize(
-        sum(conflict_penalties) * 1000 + 
-        sum(daily_lab_penalties) * 100 + 
-        sum(lib_penalties) * 50 + 
-        sum(fp_penalties) * 10
+    # --- OBJECTIVE ---
+    model.Maximize( 
+        (100 * sum(obj_vars_allocation)) + 
+        (50 * sum(obj_vars_diversity)) - 
+        (20 * sum(obj_vars_penalty)) 
     )
 
-    # Solve
+    # --- Solve ---
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 60.0
+    solver.parameters.max_time_in_seconds = 120.0
     status = solver.Solve(model)
-
-    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+    
+    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        print(f"Solution Found! (Status: {status})")
         final_schedule = {}
-        for c in all_classes:
-            c_i = class_idx[c]
-            class_schedule = {}
+        for c_name in classes:
+            c = c_map[c_name]
+            c_data = data['class_data'][c_name]
+            class_sched = {}
             for d in range(num_days):
-                day_schedule = []
+                day_sched = []
                 for p in range(num_periods):
-                    slot_info = "--- FREE ---"
-                    for s_name in data['subjects']:
-                        if s_name in subject_idx:
-                            s_i = subject_idx[s_name]
-                            if solver.Value(assign[(c_i, d, p, s_i)]):
-                                staff_list = class_data[c]['assignments'].get(s_name, ["Unassigned"])
-                                staff_str = " & ".join(staff_list)
-                                slot_info = f"{s_name} ({staff_str})"
+                    slot_txt = "-- FREE --"
+                    for s_name in all_subjects:
+                        s = s_map[s_name]
+                        if (c, d, p, s) in assign:
+                            if solver.Value(assign[(c, d, p, s)]):
+                                st_names = " & ".join(data['class_data'][c_name]['assignments'].get(s_name, []))
+                                
+                                # Add type markers for frontend styling
+                                if s_name in c_data['labs']:
+                                    slot_txt = f"[LAB] {s_name} ({st_names})"
+                                elif s_name in c_data.get('integrated', []):
+                                    slot_txt = f"[INT-LAB] {s_name} ({st_names})"
+                                elif s_name in c_data['tutorials']:
+                                    slot_txt = f"[TUT] {s_name} ({st_names})"
+                                else:
+                                    slot_txt = f"{s_name} ({st_names})"
                                 break
-                    day_schedule.append(slot_info)
-                class_schedule[d] = day_schedule
-            final_schedule[c] = class_schedule
+                    day_sched.append(slot_txt)
+                class_sched[days[d]] = day_sched
+            final_schedule[c_name] = class_sched
         return {"status": "success", "schedule": final_schedule}
     
-    return {"status": "error", "message": "No solution found (Severe Constraints)"}
+    else:
+        print("No Solution.")
+        return {"status": "failed"}

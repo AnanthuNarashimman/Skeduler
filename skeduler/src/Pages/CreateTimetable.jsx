@@ -245,14 +245,24 @@ function CreateTimetable() {
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName, dayIdx) => (
                     <React.Fragment key={dayIdx}>
                       <div className="grid-cell day-cell">{dayName}</div>
-                      {(schedule[className][dayIdx.toString()] || []).map((subject, pIdx) => (
-                        <div 
-                          key={pIdx} 
-                          className={`grid-cell content-cell ${subject.includes('Lab') ? 'lab-cell' : ''} ${subject === "--- FREE ---" ? 'free-cell' : ''}`}
-                        >
-                          {subject}
-                        </div>
-                      ))}
+                      {(schedule[className][dayName] || []).map((subject, pIdx) => {
+                        let cellClass = 'grid-cell content-cell';
+                        if (subject.startsWith('[LAB]')) {
+                          cellClass += ' lab-cell';
+                        } else if (subject.startsWith('[INT-LAB]')) {
+                          cellClass += ' integrated-lab-cell';
+                        } else if (subject.startsWith('[TUT]')) {
+                          cellClass += ' tutorial-cell';
+                        } else if (subject === '-- FREE --') {
+                          cellClass += ' free-cell';
+                        }
+                        
+                        return (
+                          <div key={pIdx} className={cellClass}>
+                            {subject}
+                          </div>
+                        );
+                      })}
                     </React.Fragment>
                   ))}
                 </div>

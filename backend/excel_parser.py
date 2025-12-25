@@ -68,11 +68,7 @@ def parse_excel_to_config(file_path):
 
             # 2. Handle Staff Names (Robust Split)
             # Split by comma, slash, newline, or when a new title appears (Mr., Dr., Mrs., Ms.)
-            # First, normalize separators - handle newlines and slashes
             clean_staff = raw_staff.replace('\n', ',').replace('/', ',')
-
-            # Handle cases where staff names are separated by title patterns without commas
-            # Example: "Mr. K. R. Natarajan Mr. T. Bhaskar" -> "Mr. K. R. Natarajan, Mr. T. Bhaskar"
             for title in [' Mr.', ' Dr.', ' Mrs.', ' Ms.']:
                 clean_staff = clean_staff.replace(title, ',' + title.strip())
 
@@ -98,7 +94,6 @@ def parse_excel_to_config(file_path):
                 c_data = data["class_data"][c_name]
 
                 # Categorize Subject
-                # Check for "Integrated Lab" explicitly
                 is_special = sType == "Special"
                 is_integrated = ("Integrated" in sType or "Integrated" in s_name) and not is_special
                 is_lab = ("Lab" in s_name or "LAB" in s_name or sType == "Lab") and not is_integrated and not is_special
