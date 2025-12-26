@@ -3,12 +3,13 @@ from collections import defaultdict
 
 def generate_timetable(data):
     """
-    FINAL ENGINE (Zero Free Slots).
-    - Lecture Limit increased to 6 to fill the 42nd hour for IV_SEM.
-    - Diversity Maximizer active (Avoids A,B,A,B).
-    - Strict Block Logic active.
+    FINAL ENGINE (VIII_SEM Half-Day Logic).
+    - VIII_SEM_A/B: Strictly scheduled in Periods 1-4 (Indices 0-3).
+      Periods 5-7 are left empty (Project Work).
+    - Other Classes: Full day scheduling with Saturday restrictions.
+    - Diversity & Matrix Dispersion active.
     """
-    print("--- Starting Final Engine (Zero Free Slots) ---")
+    print("--- Starting Final Engine (VIII_SEM Half-Day) ---")
     
     model = cp_model.CpModel()
     
@@ -32,9 +33,10 @@ def generate_timetable(data):
     staff_slots = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     
     # Objective Terms
-    obj_vars_allocation = []  # +100 per slot filled
-    obj_vars_diversity = []   # +50 per unique subject/day
-    obj_vars_penalty = []     # -20 per consecutive pair
+    obj_vars_allocation = []    # +100 per slot filled
+    obj_vars_diversity = []     # +50 per unique subject/day
+    obj_vars_h_penalty = []     # -20 per consecutive pair
+    obj_vars_v_penalty = []     # -20 per vertical repetition
 
     merged_subjects = set()
     if "VI_SEM_A" in c_map and "VI_SEM_B" in c_map:
@@ -72,20 +74,25 @@ def generate_timetable(data):
             freq_min, freq_max = 0, 0
             is_lecture = False
             
+            # Default Allowed Days (Mon-Sat = 0-5)
+            allowed_days = list(range(num_days)) 
+            
             if is_lab:
                 duration = 3
                 valid_starts = [1, 4]
                 freq_min, freq_max = 1, 1
+                allowed_days = list(range(num_days - 1)) # Mon-Fri
             elif is_integrated:
                 duration = 2
                 valid_starts = [0, 2, 4, 5]
                 freq_min, freq_max = 1, 1
+                allowed_days = list(range(num_days - 1)) 
             elif is_tutorial:
                 duration = 2
                 valid_starts = [0, 2, 4, 5]
                 freq_min, freq_max = 1, 1
+                allowed_days = list(range(num_days - 1)) 
             else: 
-                # Lectures / Specials
                 duration = 1
                 is_lecture = True 
                 if s_name == "MH":
@@ -96,14 +103,25 @@ def generate_timetable(data):
                     valid_starts = [1, 3, 6]
                     freq_min, freq_max = 1, 1
                     is_lecture = False
+                    allowed_days = list(range(num_days - 1)) 
                 else:
                     valid_starts = list(range(7))
                     if is_special:
                         freq_min, freq_max = 1, 1
                         is_lecture = False
+                        allowed_days = list(range(num_days - 1))
                     else:
-                        # HERE IS THE FIX: Allow up to 6 hours to fill the last gap
                         freq_min, freq_max = 3, 6 
+
+            # --- CONSTRAINT: VIII_SEM HALF-DAY LOGIC ---
+            # If Class is VIII_SEM, strictly restrict valid starts to first half (Indices 0,1,2,3).
+            # Also ensure the duration doesn't spill over.
+            if "VIII_SEM" in c_name:
+                # Filter valid_starts to ensure the block ENDS by index 3
+                # End index = start + duration - 1. We need end <= 3.
+                # So start <= 3 - duration + 1.
+                max_start_index = 3 - duration + 1
+                valid_starts = [p for p in valid_starts if p <= 3 and p <= max_start_index]
 
             # --- Start Variables ---
             subject_start_vars = []
@@ -113,9 +131,10 @@ def generate_timetable(data):
                 subject_start_vars.append(v)
                 model.Add(v == 1)
             else:
-                for d in range(num_days):
+                for d in allowed_days:
                     for p in valid_starts:
                         if d == 5 and p == 0: continue 
+                        
                         v = model.NewBoolVar(f'start_{c}_{s}_{d}_{p}')
                         starts[(c, s, d, p)] = v
                         subject_start_vars.append(v)
@@ -126,7 +145,7 @@ def generate_timetable(data):
                 model.Add(sum(subject_start_vars) >= freq_min)
                 model.Add(sum(subject_start_vars) <= freq_max)
 
-            # --- Link Starts to Grid & Diversity Logic ---
+            # --- Link Starts to Grid ---
             daily_assignments = defaultdict(list)
 
             for d in range(num_days):
@@ -156,21 +175,29 @@ def generate_timetable(data):
                     model.AddMaxEquality(is_present, daily_assignments[d])
                     obj_vars_diversity.append(is_present)
 
-            # --- CONSECUTIVE LOGIC (Lectures Only) ---
+            # --- LECTURE PENALTIES ---
             if is_lecture:
+                # 1. Horizontal
                 for d in range(num_days):
-                    # 1. HARD CONSTRAINT: Max 2 consecutive
                     for p in range(num_periods - 2):
                         if (c, d, p, s) in assign and (c, d, p+1, s) in assign and (c, d, p+2, s) in assign:
                             model.Add(assign[(c, d, p, s)] + assign[(c, d, p+1, s)] + assign[(c, d, p+2, s)] <= 2)
 
-                    # 2. SOFT PENALTY: Consecutive Pair
                     for p in range(num_periods - 1):
                         if (c, d, p, s) in assign and (c, d, p+1, s) in assign:
-                            penalty_var = model.NewBoolVar(f'pen_{c}_{s}_{d}_{p}')
+                            penalty_var = model.NewBoolVar(f'h_pen_{c}_{s}_{d}_{p}')
                             model.Add(assign[(c, d, p, s)] + assign[(c, d, p+1, s)] == 2).OnlyEnforceIf(penalty_var)
                             model.Add(assign[(c, d, p, s)] + assign[(c, d, p+1, s)] < 2).OnlyEnforceIf(penalty_var.Not())
-                            obj_vars_penalty.append(penalty_var)
+                            obj_vars_h_penalty.append(penalty_var)
+
+                # 2. Vertical
+                for d in range(num_days - 1):
+                    for p in range(num_periods):
+                        if (c, d, p, s) in assign and (c, d+1, p, s) in assign:
+                            v_penalty_var = model.NewBoolVar(f'v_pen_{c}_{s}_{d}_{p}')
+                            model.Add(assign[(c, d, p, s)] + assign[(c, d+1, p, s)] == 2).OnlyEnforceIf(v_penalty_var)
+                            model.Add(assign[(c, d, p, s)] + assign[(c, d+1, p, s)] < 2).OnlyEnforceIf(v_penalty_var.Not())
+                            obj_vars_v_penalty.append(v_penalty_var)
 
     print("Adding Constraints...")
 
@@ -228,15 +255,12 @@ def generate_timetable(data):
         tut_indices = [s_map[s] for s in c_data['tutorials'] if s in s_map]
         
         for d in range(num_days):
-            # Normal Labs (3 hours max)
             daily_lab = [assign[(c, d, p, s_i)] for s_i in lab_indices for p in range(num_periods) if (c, d, p, s_i) in assign]
             if daily_lab: model.Add(sum(daily_lab) <= 3)
             
-            # Integrated Labs (2 hours max)
             daily_int = [assign[(c, d, p, s_i)] for s_i in int_indices for p in range(num_periods) if (c, d, p, s_i) in assign]
             if daily_int: model.Add(sum(daily_int) <= 2)
 
-            # Tutorials (2 hours max)
             daily_tut = [assign[(c, d, p, s_i)] for s_i in tut_indices for p in range(num_periods) if (c, d, p, s_i) in assign]
             if daily_tut: model.Add(sum(daily_tut) <= 2)
 
@@ -255,7 +279,8 @@ def generate_timetable(data):
     model.Maximize( 
         (100 * sum(obj_vars_allocation)) + 
         (50 * sum(obj_vars_diversity)) - 
-        (20 * sum(obj_vars_penalty)) 
+        (20 * sum(obj_vars_h_penalty)) -
+        (20 * sum(obj_vars_v_penalty))
     )
 
     # --- Solve ---
@@ -274,6 +299,10 @@ def generate_timetable(data):
                 day_sched = []
                 for p in range(num_periods):
                     slot_txt = "-- FREE --"
+                    # For VIII_SEM, assume FREE slots in afternoon are PW
+                    if "VIII_SEM" in c_name and p >= 4:
+                        slot_txt = "Project Work (No Staff)"
+                    
                     for s_name in all_subjects:
                         s = s_map[s_name]
                         if (c, d, p, s) in assign:
