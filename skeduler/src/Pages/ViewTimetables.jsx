@@ -53,10 +53,11 @@ function ViewTimetables() {
     let csvContent = "Class,Day,Period 1,Period 2,Period 3,Period 4,Period 5,Period 6,Period 7\n";
 
     Object.keys(schedule).forEach(className => {
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      days.forEach((day, dayIdx) => {
-        const periods = schedule[className][dayIdx.toString()] || [];
-        csvContent += `${className},${day},${periods.join(',')}\n`;
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const daysFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      days.forEach((dayShort, dayIdx) => {
+        const periods = schedule[className][dayShort] || [];
+        csvContent += `${className},${daysFull[dayIdx]},${periods.join(',')}\n`;
       });
     });
 
@@ -266,14 +267,24 @@ function ViewTimetables() {
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName, dayIdx) => (
                           <React.Fragment key={dayIdx}>
                             <div className="grid-cell day-cell">{dayName}</div>
-                            {(schedule[className][dayIdx.toString()] || []).map((subject, pIdx) => (
-                              <div
-                                key={pIdx}
-                                className={`grid-cell content-cell ${subject.includes('Lab') ? 'lab-cell' : ''} ${subject.includes('Tutorial') ? 'tutorial-cell' : ''} ${subject === "--- FREE ---" ? 'free-cell' : ''}`}
-                              >
-                                {subject}
-                              </div>
-                            ))}
+                            {(schedule[className][dayName] || []).map((subject, pIdx) => {
+                              let cellClass = 'grid-cell content-cell';
+                              if (subject.startsWith('[LAB]')) {
+                                cellClass += ' lab-cell';
+                              } else if (subject.startsWith('[INT-LAB]')) {
+                                cellClass += ' integrated-lab-cell';
+                              } else if (subject.startsWith('[TUT]')) {
+                                cellClass += ' tutorial-cell';
+                              } else if (subject === '-- FREE --') {
+                                cellClass += ' free-cell';
+                              }
+                              
+                              return (
+                                <div key={pIdx} className={cellClass}>
+                                  {subject}
+                                </div>
+                              );
+                            })}
                           </React.Fragment>
                         ))}
                       </div>
