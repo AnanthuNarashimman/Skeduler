@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import '../PageStyles/ViewTimetables.css';
 import AdminNavbar from '../admin/AdminNavbar';
 
@@ -72,6 +73,57 @@ function ViewTimetables() {
     document.body.removeChild(link);
   };
 
+  const downloadTimetableAsExcel = () => {
+    if (!selectedTimetable) return;
+
+    const schedule = selectedTimetable.schedule_data;
+    const workbook = XLSX.utils.book_new();
+
+    // Create a sheet for each class
+    Object.keys(schedule).sort().forEach(className => {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const daysFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      
+      // Prepare data for the sheet
+      const sheetData = [
+        ['Day', 'Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6', 'Period 7']
+      ];
+
+      days.forEach((dayShort, dayIdx) => {
+        const periods = schedule[className][dayShort] || [];
+        sheetData.push([daysFull[dayIdx], ...periods]);
+      });
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+      
+      // Auto-fit column widths based on content
+      const colWidths = [];
+      const numCols = sheetData[0].length;
+      
+      for (let col = 0; col < numCols; col++) {
+        let maxWidth = 0;
+        sheetData.forEach(row => {
+          const cellValue = row[col] || '';
+          const cellLength = cellValue.toString().length;
+          maxWidth = Math.max(maxWidth, cellLength);
+        });
+        // Add some padding and set minimum width
+        colWidths.push({ wch: Math.max(maxWidth + 2, 10) });
+      }
+      
+      worksheet['!cols'] = colWidths;
+
+      // Add worksheet to workbook with class name as sheet name
+      // Excel sheet names have a 31 character limit
+      const sheetName = className.length > 31 ? className.substring(0, 31) : className;
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    });
+
+    // Write file
+    XLSX.writeFile(workbook, 'Time_Table_Data.xlsx');
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -123,6 +175,60 @@ function ViewTimetables() {
     }
   };
 
+  const downloadAllAsExcel = () => {
+    if (timetables.length === 0) return;
+
+    const workbook = XLSX.utils.book_new();
+
+    // Create a sheet for each class from all timetables
+    timetables.forEach(timetable => {
+      const schedule = timetable.schedule_data;
+      
+      Object.keys(schedule).sort().forEach(className => {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const daysFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        // Prepare data for the sheet
+        const sheetData = [
+          ['Day', 'Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6', 'Period 7']
+        ];
+
+        days.forEach((dayShort, dayIdx) => {
+          const periods = schedule[className][dayShort] || [];
+          sheetData.push([daysFull[dayIdx], ...periods]);
+        });
+
+        // Create worksheet
+        const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+        
+        // Auto-fit column widths based on content
+        const colWidths = [];
+        const numCols = sheetData[0].length;
+        
+        for (let col = 0; col < numCols; col++) {
+          let maxWidth = 0;
+          sheetData.forEach(row => {
+            const cellValue = row[col] || '';
+            const cellLength = cellValue.toString().length;
+            maxWidth = Math.max(maxWidth, cellLength);
+          });
+          // Add some padding and set minimum width
+          colWidths.push({ wch: Math.max(maxWidth + 2, 10) });
+        }
+        
+        worksheet['!cols'] = colWidths;
+
+        // Add worksheet to workbook with class name as sheet name
+        // Excel sheet names have a 31 character limit
+        const sheetName = className.length > 31 ? className.substring(0, 31) : className;
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+      });
+    });
+
+    // Write file
+    XLSX.writeFile(workbook, 'Time_Table_Data.xlsx');
+  };
+
   return (
     <>
       <AdminNavbar activePage="View" />
@@ -131,19 +237,34 @@ function ViewTimetables() {
           <h2>Timetable Gallery</h2>
           <p>View and download all created timetables</p>
           {timetables.length > 0 && (
-            <button 
-              className="delete-all-btn"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={deleting}
-            >
-              <svg className="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-              Delete All
-            </button>
+            <div className="header-buttons">
+              <button 
+                className="download-btn"
+                onClick={downloadAllAsExcel}
+              >
+                <svg className="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Download as Excel
+              </button>
+              <button 
+                className="delete-all-btn"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={deleting}
+              >
+                <svg className="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Delete All
+              </button>
+            </div>
           )}
         </div>
 
