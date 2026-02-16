@@ -10,6 +10,19 @@ from database import init_db, create_teacher
 from auth import hash_password
 
 
+def normalize_staff_name(name):
+    """
+    Normalize staff name for matching.
+    Removes ALL spaces, converts to lowercase.
+    """
+    if not name or not isinstance(name, str):
+        return ""
+    import re
+    # Add space after periods then remove all spaces
+    name = re.sub(r'\.(?=[A-Za-z])', '. ', name)
+    return name.lower().replace(' ', '')
+
+
 def generate_username(name):
     """
     Generate username from teacher name

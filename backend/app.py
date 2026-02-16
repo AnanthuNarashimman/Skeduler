@@ -208,7 +208,7 @@ def remove_all_timetables():
     """Delete all timetables"""
     try:
         success = delete_all_timetables()
-        
+
         if success:
             return jsonify({
                 "status": "success",
@@ -219,10 +219,137 @@ def remove_all_timetables():
                 "status": "error",
                 "message": "Failed to delete timetables"
             }), 400
-    
+
     except Exception as e:
         print(f"Error deleting all timetables: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/staff-timetables', methods=['GET'])
+def get_staff_timetables():
+    """
+    Get individual timetables for all staff members.
+    Extracts staff names from all timetables and builds their individual schedules.
+    Returns staff list with their periods per week and detailed schedule.
+    """
+    try:
+        import re
+        
+        def normalize_staff_name(name):
+            """Normalize name: remove ALL spaces, lowercase"""
+            if not name or not isinstance(name, str):
+                return ""
+            # Add space after periods then remove all spaces
+            name = re.sub(r'\.(?=[A-Za-z])', '. ', name)
+            return name.lower().replace(' ', '')
+
+        # Get all timetables
+        all_timetables = get_all_timetables(limit=1000)
+
+        if not all_timetables:
+            return jsonify({
+                "status": "success",
+                "staff_timetables": [],
+                "total_staff": 0
+            }), 200
+
+        # Dictionary to store each staff's schedule
+        staff_schedules = {}
+
+        # Day mapping
+        day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+        for timetable in all_timetables:
+            schedule_data = timetable['schedule_data']
+
+            for class_name, class_schedule in schedule_data.items():
+                for day_idx, day_name in enumerate(day_names):
+                    day_schedule = class_schedule.get(day_name, [])
+
+                    for period_idx, period_entry in enumerate(day_schedule):
+                        # Skip free periods
+                        if period_entry == '-- FREE --' or not period_entry:
+                            continue
+
+                        # Extract staff names from period entry
+                        # Format: "Subject (Staff1 & Staff2)" or "[LAB] Subject (Staff1 & Staff2)"
+                        match = re.search(r'\(([^)]+)\)$', period_entry)
+                        if match:
+                            staff_str = match.group(1)
+                            # Split by & or / for multiple staff
+                            staff_names = [s.strip() for s in re.split(r'\s*[&/]\s*', staff_str)]
+
+                            # Extract subject name (remove [LAB], [TUT], [INT-LAB] prefixes)
+                            subject = re.sub(r'^\[(LAB|TUT|INT-LAB)\]\s*', '', period_entry)
+                            subject = re.sub(r'\s*\([^)]+\)$', '', subject).strip()
+
+                            for staff_name in staff_names:
+                                if not staff_name:
+                                    continue
+
+                                # Normalize for deduplication but keep original display name
+                                staff_normalized = normalize_staff_name(staff_name)
+                                
+                                # Initialize staff entry if not exists
+                                if staff_normalized not in staff_schedules:
+                                    staff_schedules[staff_normalized] = {
+                                        'name': staff_name,  # Use first occurrence's display name
+                                        'periods': [],
+                                        'schedule': {day: [None] * 7 for day in day_names},
+                                        'periods_per_week': 0,
+                                        'classes': set(),
+                                        'subjects': set()
+                                    }
+
+                                # Add period info
+                                staff_schedules[staff_normalized]['periods'].append({
+                                    'day': day_idx,
+                                    'day_name': day_name,
+                                    'period': period_idx,
+                                    'class': class_name,
+                                    'subject': subject,
+                                    'full_entry': period_entry
+                                })
+
+                                # Update schedule grid
+                                existing = staff_schedules[staff_normalized]['schedule'][day_name][period_idx]
+                                new_entry = f"{class_name}: {subject}"
+                                if existing:
+                                    # Multiple classes at same time (shouldn't happen but handle it)
+                                    staff_schedules[staff_normalized]['schedule'][day_name][period_idx] = f"{existing} | {new_entry}"
+                                else:
+                                    staff_schedules[staff_normalized]['schedule'][day_name][period_idx] = new_entry
+
+                                staff_schedules[staff_normalized]['classes'].add(class_name)
+                                staff_schedules[staff_normalized]['subjects'].add(subject)
+
+        # Convert to list and calculate totals
+        staff_list = []
+        for staff_name, data in staff_schedules.items():
+            staff_list.append({
+                'name': data['name'],
+                'periods_per_week': len(data['periods']),
+                'schedule': data['schedule'],
+                'periods': data['periods'],
+                'classes': list(data['classes']),
+                'subjects': list(data['subjects']),
+                'total_classes': len(data['classes']),
+                'total_subjects': len(data['subjects'])
+            })
+
+        # Sort by name
+        staff_list.sort(key=lambda x: x['name'])
+
+        return jsonify({
+            "status": "success",
+            "staff_timetables": staff_list,
+            "total_staff": len(staff_list)
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching staff timetables: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 # ==================== TEACHER AUTHENTICATION ENDPOINTS ====================
 
@@ -293,12 +420,23 @@ def get_teacher_timetable():
     Returns all periods where the teacher is assigned
     """
     try:
+        import re
+        
+        def normalize_staff_name(name):
+            """Normalize name: remove ALL spaces, lowercase"""
+            if not name or not isinstance(name, str):
+                return ""
+            # Add space after periods then remove all spaces
+            name = re.sub(r'\.(?=[A-Za-z])', '. ', name)
+            return name.lower().replace(' ', '')
+        
         teacher = get_current_teacher()
 
         if not teacher:
             return jsonify({"status": "error", "message": "Teacher not found"}), 404
 
         teacher_name = teacher['name']
+        teacher_name_normalized = normalize_staff_name(teacher_name)
 
         # Get all timetables
         all_timetables = get_all_timetables(limit=1000)
@@ -318,12 +456,24 @@ def get_teacher_timetable():
                     day_schedule = class_schedule.get(day_key, class_schedule.get(str(day_idx), []))
 
                     for period_idx, period in enumerate(day_schedule):
-                        if teacher_name in period:
-                            teacher_periods.append({
-                                'day': day_idx,
-                                'period': period_idx,
-                                'subject': period
-                            })
+                        # Extract staff names from period entry for exact matching
+                        # Format: "Subject (Staff1 & Staff2)" or "[LAB] Subject (Staff1 & Staff2)"
+                        if period and period != '-- FREE --':
+                            match = re.search(r'\(([^)]+)\)$', period)
+                            if match:
+                                staff_str = match.group(1)
+                                # Split by & or / for multiple staff
+                                period_staff_names = [s.strip() for s in re.split(r'\s*[&/]\s*', staff_str)]
+                                # Normalize all period staff names for comparison
+                                period_staff_normalized = [normalize_staff_name(s) for s in period_staff_names]
+                                
+                                # Check if teacher name matches any staff in this period (normalized)
+                                if teacher_name_normalized in period_staff_normalized:
+                                    teacher_periods.append({
+                                        'day': day_idx,
+                                        'period': period_idx,
+                                        'subject': period
+                                    })
 
                 if teacher_periods:
                     teacher_schedule[class_name] = {

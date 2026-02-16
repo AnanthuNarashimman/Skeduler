@@ -2,6 +2,23 @@ import pandas as pd
 import re
 from collections import defaultdict
 
+def normalize_staff_name(name):
+    """
+    Normalize staff name for matching purposes.
+    Removes ALL spaces and converts to lowercase.
+    This way 'Mr. Rajiv Kannan', 'Mr.Rajivkannan', and 'mr. rajiv kannan' are all treated as same person.
+    Only the spelling (letters and their order) matters for identification.
+    """
+    if not name or not isinstance(name, str):
+        return ""
+    # Convert to lowercase and remove ALL spaces
+    import re
+    # First add space after periods (Dr.A. -> Dr. A.)
+    name = re.sub(r'\.(?=[A-Za-z])', '. ', name)
+    # Then remove all spaces and lowercase
+    normalized = name.lower().replace(' ', '')
+    return normalized
+
 def parse_excel_to_config(file_path):
     """
     Reads the 'CSE Staff Allocations' Excel/CSV.
@@ -21,11 +38,12 @@ def parse_excel_to_config(file_path):
             "classes": [],
             "staff": [],
             "subjects": [],
-            "class_data": {}
+            "class_data": {},
+            "staff_name_mapping": {}  # normalized -> original display name
         }
         
         classes_set = set()
-        staff_set = set()
+        staff_dict = {}  # normalized -> original display name
         subjects_set = set()
 
         for _, row in df.iterrows():
@@ -80,7 +98,10 @@ def parse_excel_to_config(file_path):
                 classes_set.add(c_name)
                 subjects_set.add(s_name)
                 for s in staff_list:
-                    staff_set.add(s)
+                    normalized = normalize_staff_name(s)
+                    # Keep the first occurrence's display name
+                    if normalized not in staff_dict:
+                        staff_dict[normalized] = s
 
                 if c_name not in data["class_data"]:
                     data["class_data"][c_name] = {
@@ -127,7 +148,9 @@ def parse_excel_to_config(file_path):
                 del c_data['_temp_groups']
 
         data["classes"] = sorted(list(classes_set))
-        data["staff"] = sorted(list(staff_set))
+        # Use original display names for staff list
+        data["staff"] = sorted(list(staff_dict.values()))
+        data["staff_name_mapping"] = staff_dict  # Store mapping for lookups
         data["subjects"] = sorted(list(subjects_set))
         
         return data

@@ -14,7 +14,8 @@ const AdminNavbar = ({ activePage = 'Dashboard' }) => {
   const navItems = [
     { name: 'Dashboard', path: '/admin/dashboard' },
     { name: 'Create', path: '/create' },
-    { name: 'View', path: '/view' }
+    { name: 'View', path: '/view' },
+    { name: 'Staff', path: '/staff' }
   ];
 
   const handleSendEmail = () => {

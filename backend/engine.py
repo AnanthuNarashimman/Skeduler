@@ -1,6 +1,18 @@
 from ortools.sat.python import cp_model
 from collections import defaultdict
 
+def normalize_staff_name(name):
+    """
+    Normalize staff name for matching.
+    Removes ALL spaces, converts to lowercase.
+    """
+    if not name or not isinstance(name, str):
+        return ""
+    import re
+    # Add space after periods then remove all spaces
+    name = re.sub(r'\.(?=[A-Za-z])', '. ', name)
+    return name.lower().replace(' ', '')
+
 def generate_timetable(data):
     """
     FINAL ENGINE (VIII_SEM Half-Day Logic).
@@ -25,7 +37,9 @@ def generate_timetable(data):
     
     c_map = {name: i for i, name in enumerate(classes)}
     s_map = {name: i for i, name in enumerate(all_subjects)}
-    st_map = {name: i for i, name in enumerate(staff_list)}
+    # Use normalized names for staff mapping
+    st_map = {normalize_staff_name(name): i for i, name in enumerate(staff_list)}
+    staff_display_names = {i: name for i, name in enumerate(staff_list)}  # index -> display name
     
     starts = {}
     assign = {}
@@ -55,7 +69,8 @@ def generate_timetable(data):
         for s_name in unique_subs:
             s = s_map[s_name]
             staff_names = c_data['assignments'].get(s_name, [])
-            staff_indices = [st_map[st] for st in staff_names if st in st_map]
+            # Normalize staff names for lookup
+            staff_indices = [st_map[normalize_staff_name(st)] for st in staff_names if normalize_staff_name(st) in st_map]
 
             skip_staff_check = False
             if c_name == "VI_SEM_B" and s_name in merged_subjects:
@@ -245,6 +260,16 @@ def generate_timetable(data):
             for p in range(num_periods):
                 if staff_slots[st][d][p]:
                     model.Add(sum(staff_slots[st][d][p]) <= 1)
+
+    # 3b. Staff Maximum Weekly Periods (25 periods per week)
+    for st in range(len(staff_list)):
+        weekly_periods = []
+        for d in range(num_days):
+            for p in range(num_periods):
+                if staff_slots[st][d][p]:
+                    weekly_periods.extend(staff_slots[st][d][p])
+        if weekly_periods:
+            model.Add(sum(weekly_periods) <= 25)
 
     # 4. Daily Limits
     for c_name in classes:

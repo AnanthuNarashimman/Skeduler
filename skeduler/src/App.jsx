@@ -9,6 +9,7 @@ import Test from './Pages/Test';
 import AdminDashboard from './admin/AdminDashboard';
 import CreateTimetable from './Pages/CreateTimetable';
 import ViewTimetables from './Pages/ViewTimetables';
+import ViewStaffTimetables from './Pages/ViewStaffTimetables';
 
 // Teacher components
 import TeacherLogin from './Pages/Teacher/TeacherLogin';
@@ -27,6 +28,7 @@ function App() {
           <Route path='/admin/dashboard' element={<AdminDashboard />} />
           <Route path='/create' element={<CreateTimetable />} />
           <Route path='/view' element={<ViewTimetables />} />
+          <Route path='/staff' element={<ViewStaffTimetables />} />
 
           {/* Teacher Routes */}
           <Route path='/teacher/login' element={<TeacherLogin />} />
